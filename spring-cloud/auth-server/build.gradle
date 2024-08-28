@@ -1,0 +1,77 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.3.2'
+	id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'hu.therealuhlarzoltan.expensables.cloud'
+version = '1.0.0-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(22)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+jar {
+	enabled = false;
+}
+
+ext {
+	set('springCloudVersion', "2023.0.3")
+	jjwtVersion = '0.11.5'
+	flywayVersion = '9.22.0'
+	lombokVersion = '1.18.32'
+	mainClassName = 'AuthServerApplication'
+}
+
+dependencies {
+	//lombok
+	compileOnly "org.projectlombok:lombok:${lombokVersion}"
+	annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+	testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+	testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+	//jwtTokens
+	implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+	//springSecurity
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	//mySQL
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	implementation "org.flywaydb:flyway-core:${flywayVersion}"
+	compileOnly "org.flywaydb:flyway-mysql:${flywayVersion}"
+
+	//eureka
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	//springBoot starters
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
+
+tasks.named('bootJar') {
+	mainClass = "hu.therealuhlarzoltan.expensables.cloud.authserver.${mainClassName}"
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

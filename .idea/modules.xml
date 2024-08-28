@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/api/microserviceLandscape.api.main.iml" filepath="$PROJECT_DIR$/.idea/modules/api/microserviceLandscape.api.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/microservices/account-service/microserviceLandscape.microservices.account-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/microservices/account-service/microserviceLandscape.microservices.account-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/microservices/account-service/microserviceLandscape.microservices.account-service.test.iml" filepath="$PROJECT_DIR$/.idea/modules/microservices/account-service/microserviceLandscape.microservices.account-service.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/microservices/expense-service/microserviceLandscape.microservices.expense-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/microservices/expense-service/microserviceLandscape.microservices.expense-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/microservices/expense-service/microserviceLandscape.microservices.expense-service.test.iml" filepath="$PROJECT_DIR$/.idea/modules/microservices/expense-service/microserviceLandscape.microservices.expense-service.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/spring-cloud/auth-server/microserviceLandscape.spring-cloud.auth-server.main.iml" filepath="$PROJECT_DIR$/.idea/modules/spring-cloud/auth-server/microserviceLandscape.spring-cloud.auth-server.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/spring-cloud/auth-server/microserviceLandscape.spring-cloud.auth-server.test.iml" filepath="$PROJECT_DIR$/.idea/modules/spring-cloud/auth-server/microserviceLandscape.spring-cloud.auth-server.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/spring-cloud/eureka-server/microserviceLandscape.spring-cloud.eureka-server.main.iml" filepath="$PROJECT_DIR$/.idea/modules/spring-cloud/eureka-server/microserviceLandscape.spring-cloud.eureka-server.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/util/microserviceLandscape.util.main.iml" filepath="$PROJECT_DIR$/.idea/modules/util/microserviceLandscape.util.main.iml" />
+    </modules>
+  </component>
+</project>

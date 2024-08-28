@@ -1,0 +1,7 @@
+include ':api'
+include ':util'
+include ':microservices:account-service'
+include ':microservices:expense-service'
+include ':microservices:income-service'
+include ':spring-cloud:eureka-server'
+include ':spring-cloud:auth-server'

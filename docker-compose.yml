@@ -1,0 +1,67 @@
+services:
+  account:
+    build: microservices/account-service
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+        replicas: 3
+
+  expense:
+    build: microservices/expense-service
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+        replicas: 3
+
+    income:
+      build: microservices/income-service
+      mem_limit: 512m
+      environment:
+        - SPRING_PROFILES_ACTIVE=docker
+      depends_on:
+          mongodb:
+              condition: service_healthy
+      deploy:
+          replicas: 2
+
+  mongodb:
+    image: mongo:6.0.4
+    mem_limit: 512m
+    ports:
+      - "27017:27017"
+    command: mongod
+    healthcheck:
+      test: "mongostat -n 1"
+      interval: 5s
+      timeout: 2s
+      retries: 60
+
+
+  eureka-server-1:
+    build: spring-cloud/eureka-server
+    mem_limit: 512m
+    container_name: eureka-server-1
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_APPLICATION_NAME=eureka-server-1
+    ports:
+      - "8761:8761"
+
+  eureka-server-2:
+    build: spring-cloud/eureka-server
+    mem_limit: 512m
+    container_name: eureka-server-2
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_APPLICATION_NAME=eureka-server-2
+    ports:
+      - "8762:8761"
+
