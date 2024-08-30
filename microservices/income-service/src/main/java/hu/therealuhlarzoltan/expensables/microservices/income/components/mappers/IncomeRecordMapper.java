@@ -1,6 +1,10 @@
 package hu.therealuhlarzoltan.expensables.microservices.income.components.mappers;
 
+import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
 import hu.therealuhlarzoltan.expensables.microservices.income.models.IncomeRecordEntity;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.Mappings;
 
 @Mapper(componentModel = "spring", uses = {IncomeCategoryMapper.class})
 public interface IncomeRecordMapper {
@@ -15,7 +19,7 @@ public interface IncomeRecordMapper {
             @Mapping(source = "timestamp", target = "incomeDate"),
             @Mapping(source = "category", target = "incomeCategory", qualifiedByName = "mapIncomeCategoryToString")
     })
-    IncomeRecord entityToIncomeRecord(ExpenseRecordEntity expenseRecordEntity);
+    IncomeRecord entityToIncomeRecord(IncomeRecordEntity incomeRecordEntity);
     @Mappings({
             @Mapping(source = "recordId", target = "id"),
             @Mapping(source = "userId", target = "userId"),

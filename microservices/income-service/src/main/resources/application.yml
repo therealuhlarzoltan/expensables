@@ -1,1 +1,69 @@
-spring.application.name=income-service
+server:
+    port: 7002
+    error.include-message: always
+
+app:
+  eureka-server: localhost
+  eureka-username: eureka_client
+  eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+
+
+spring:
+  application:
+    name: income-service
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
+  data.mongodb:
+    host: localhost
+    port: 27017
+    database: income_record_db
+    auto-index-creation: true
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server}:8761/eureka/"
+    initialInstanceInfoReplicationIntervalSeconds: 5
+    registryFetchIntervalSeconds: 5
+  instance:
+    leaseRenewalIntervalInSeconds: 5
+    leaseExpirationDurationInSeconds: 5
+
+springdoc:
+  swagger-ui:
+    path: /openapi/swagger-ui.html
+  api-docs:
+    path: /openapi/api-docs
+  paths-to-match: /**
+  packages-to-scan:
+    - hu.therealuhlarzoltan.expensables.microservices.income
+    - hu.therealuhlarzoltan.expensables.api.microservices.core.income
+
+logging:
+  level:
+    root: INFO
+    hu.therealuhlarzoltan: INFO
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+    org.springdoc: INFO
+
+---
+spring.config.activate.on-profile: docker
+
+
+app:
+  eureka-server-1: eureka-server-1
+  eureka-server-2: eureka-server-2
+
+
+spring.data.mongodb.host: mongodb
+
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-1}:8761/eureka/, http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-2}:8761/eureka/
+
+

@@ -34,11 +34,11 @@ public class ExpenseRecordEntity {
     @Size(min = 1, max = 40, message = "Expense name must be between 1 and 40 characters")
     private String name;
     @NotNull(message = "Expense category is required")
-    @Size(min = 3, max = 20, message = "Expense category must be between 3 and 20 characters")
+    @Size(min = 3, max = 64, message = "Expense category must be between 3 and 64 characters")
     @ExpenseCategoryExists(message = "Invalid expense category")
     private String category;
     @NotNull(message = "Expense subcategory is required")
-    @Size(min = 3, max = 20, message = "Expense subcategory must be between 3 and 20 characters")
+    @Size(min = 3, max = 64, message = "Expense subcategory must be between 3 and 64 characters")
     @ExpenseSubCategoryExists(message = "Invalid expense subcategory")
     private String subCategory;
     @NotNull(message = "Amount is required")

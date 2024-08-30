@@ -1,6 +1,8 @@
 package hu.therealuhlarzoltan.expensables.microservices.income.components.mappers;
 
 import hu.therealuhlarzoltan.expensables.microservices.income.models.IncomeCategory;
+import org.mapstruct.Mapper;
+import org.mapstruct.Named;
 
 @Mapper(componentModel = "spring")
 public interface IncomeCategoryMapper {

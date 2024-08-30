@@ -1,5 +1,6 @@
 package hu.therealuhlarzoltan.expensables.microservices.income.services;
 
+import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
 import hu.therealuhlarzoltan.expensables.microservices.income.models.IncomeRecordEntity;
 import jakarta.validation.Valid;
 import reactor.core.publisher.Flux;

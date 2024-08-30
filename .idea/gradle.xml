@@ -14,6 +14,7 @@
             <option value="$PROJECT_DIR$/microservices/account-service" />
             <option value="$PROJECT_DIR$/microservices/expense-service" />
             <option value="$PROJECT_DIR$/microservices/income-service" />
+            <option value="$PROJECT_DIR$/microservices/transaction-service" />
             <option value="$PROJECT_DIR$/spring-cloud" />
             <option value="$PROJECT_DIR$/spring-cloud/auth-server" />
             <option value="$PROJECT_DIR$/spring-cloud/eureka-server" />

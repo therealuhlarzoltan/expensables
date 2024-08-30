@@ -21,16 +21,27 @@ services:
     deploy:
         replicas: 3
 
-    income:
-      build: microservices/income-service
-      mem_limit: 512m
-      environment:
-        - SPRING_PROFILES_ACTIVE=docker
-      depends_on:
-          mongodb:
-              condition: service_healthy
-      deploy:
-          replicas: 2
+  income:
+    build: microservices/income-service
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+        mongodb:
+            condition: service_healthy
+    deploy:
+        replicas: 2
+
+  transaction:
+    build: microservices/transaction-service
+    mem_limit: 512m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    deploy:
+      replicas: 2
 
   mongodb:
     image: mongo:6.0.4
@@ -43,7 +54,6 @@ services:
       interval: 5s
       timeout: 2s
       retries: 60
-
 
   eureka-server-1:
     build: spring-cloud/eureka-server

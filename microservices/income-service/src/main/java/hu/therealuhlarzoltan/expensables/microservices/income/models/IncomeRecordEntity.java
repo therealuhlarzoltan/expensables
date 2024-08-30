@@ -30,10 +30,10 @@ public class IncomeRecordEntity {
     @Size(min = 36, max = 36, message = "Account id must be 36 characters long")
     private String accountId;
     @NotNull(message = "Income name is required")
-    @Size(min = 1, max = 40, message = "Expense name must be between 1 and 40 characters")
+    @Size(min = 1, max = 40, message = "Income name must be between 1 and 40 characters")
     private String name;
     @NotNull(message = "Income category is required")
-    @Size(min = 3, max = 20, message = "Income category must be between 3 and 20 characters")
+    @Size(min = 3, max = 64, message = "Income category must be between 3 and 64 characters")
     @IncomeCategoryExists(message = "Invalid income category")
     private String category;
     @NotNull(message = "Amount is required")

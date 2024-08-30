@@ -14,12 +14,14 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
 
 @Service
+@Validated
 @RequiredArgsConstructor
 public class ExpenseServiceImpl  implements ExpenseService {
     private static final Logger LOG = LoggerFactory.getLogger(ExpenseServiceImpl.class);
@@ -51,6 +53,8 @@ public class ExpenseServiceImpl  implements ExpenseService {
     @Override
     public Mono<ExpenseRecord> createExpense(@Valid ExpenseRecordEntity expenseRecord) {
         LOG.info("Will create an expense record with validated data: {}", expenseRecord);
+        if (expenseRecord.getId() != null && expenseRecord.getId().length() != 24)
+            throw new InvalidInputDataException("Id must be 24 characters long");
         if (!categoryValidator.isValid(ExpenseCategory.valueOf(expenseRecord.getCategory()), expenseRecord.getSubCategory()))
             return Mono.error(new InvalidInputDataException("Expense category and subcategory must be the same"));
         expenseRecord.setVersion(null); //handled by mongo

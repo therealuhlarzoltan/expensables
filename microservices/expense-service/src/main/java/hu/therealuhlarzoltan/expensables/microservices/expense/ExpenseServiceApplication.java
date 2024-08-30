@@ -30,12 +30,11 @@ public class ExpenseServiceApplication {
     public static void main(String[] args) {
         var ctx = SpringApplication.run(ExpenseServiceApplication.class, args);
 
-
-        String mongodDbHost = ctx.getEnvironment().getProperty("spring.data.mongodb.host");
-        String mongodDbPort = ctx.getEnvironment().getProperty("spring.data.mongodb.port");
+        String mongoDbHost = ctx.getEnvironment().getProperty("spring.data.mongodb.host");
+        String mongoDbPort = ctx.getEnvironment().getProperty("spring.data.mongodb.port");
         String applicationName = ctx.getEnvironment().getProperty("spring.application.name");
         LOG.info("Application with name of {} started", applicationName);
-        LOG.info("Connected to MongoDb on URL {}:{}", mongodDbHost, mongodDbPort);
+        LOG.info("Connected to MongoDb on URL {}:{}", mongoDbHost, mongoDbPort);
     }
 
 

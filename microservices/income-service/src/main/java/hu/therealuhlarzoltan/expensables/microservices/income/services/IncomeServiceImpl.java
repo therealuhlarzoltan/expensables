@@ -1,16 +1,25 @@
 package hu.therealuhlarzoltan.expensables.microservices.income.services;
 
+import com.mongodb.DuplicateKeyException;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
 import hu.therealuhlarzoltan.expensables.microservices.income.components.mappers.IncomeRecordMapper;
 import hu.therealuhlarzoltan.expensables.microservices.income.models.IncomeRecordEntity;
 import hu.therealuhlarzoltan.expensables.microservices.income.repositories.IncomeRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
+
 @Service
+@Validated
 @RequiredArgsConstructor
 public class IncomeServiceImpl implements IncomeService {
     private static final Logger LOG = LoggerFactory.getLogger(IncomeServiceImpl.class);
@@ -21,31 +30,57 @@ public class IncomeServiceImpl implements IncomeService {
     @Override
     public Flux<IncomeRecord> getAllIncomes() {
         LOG.info("Will retrieve all income records");
-        return null;
+        return repository.findAll().map(mapper::entityToIncomeRecord);
     }
 
     @Override
     public Mono<IncomeRecord> getIncome(String recordId) {
-        return null;
+        LOG.info("Will retrieve income record with ID: {}", recordId);
+        return repository.findById(recordId)
+                .switchIfEmpty(Mono.error(new NotFoundException("as")))
+                .map(mapper::entityToIncomeRecord);
     }
 
     @Override
     public Flux<IncomeRecord> getIncomesByAccount(String accountId) {
-        return null;
+        LOG.info("Will retrieve all income records for account with ID: {}", accountId);
+        return repository.findAllByAccountId(accountId).map(mapper::entityToIncomeRecord);
     }
 
     @Override
-    public Mono<IncomeRecord> createIncome(IncomeRecordEntity incomeRecord) {
-        return null;
+    public Mono<IncomeRecord> createIncome(@Valid IncomeRecordEntity incomeRecord) {
+        LOG.info("Will create income record with body: {}", incomeRecord);
+        if (incomeRecord.getId() != null && incomeRecord.getId().length() != 24)
+            throw new InvalidInputDataException("Id must be 24 characters long");
+        incomeRecord.setVersion(null); //handled by mongo
+        incomeRecord.setTimestamp(LocalDate.now());
+        return repository.save(incomeRecord)
+                .onErrorMap(
+                        DuplicateKeyException.class,
+                        e -> new InvalidInputDataException("Record with ID: " + incomeRecord.getId() + " already exists"))
+                .map(mapper::entityToIncomeRecord);
     }
 
     @Override
-    public Mono<IncomeRecord> updateIncome(IncomeRecordEntity incomeRecord) {
-        return null;
+    public Mono<IncomeRecord> updateIncome(@Valid IncomeRecordEntity incomeRecord) {
+        LOG.info("Will update income record with body: {}", incomeRecord);
+        return repository.findById(incomeRecord.getId())
+                .switchIfEmpty(Mono.error(new NotFoundException("Record with ID: " + incomeRecord.getId() + " not found")))
+                .flatMap(existingRecord -> {
+                    existingRecord.setAccountId(incomeRecord.getAccountId());
+                    existingRecord.setName(incomeRecord.getName());
+                    existingRecord.setCurrency(incomeRecord.getCurrency());
+                    existingRecord.setAmount(incomeRecord.getAmount());
+                    existingRecord.setCategory(incomeRecord.getCategory());
+                    existingRecord.setTimestamp(LocalDate.now());
+                    return repository.save(existingRecord);
+                })
+                .map(mapper::entityToIncomeRecord);
     }
 
     @Override
     public Mono<Void> deleteIncome(String recordId) {
-        return null;
+        LOG.info("Will delete income record with ID: {}", recordId);
+        return repository.deleteById(recordId);
     }
 }

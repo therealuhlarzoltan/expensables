@@ -8,5 +8,5 @@ import reactor.core.publisher.Flux;
 @Repository
 public interface IncomeRepository extends ReactiveCrudRepository<IncomeRecordEntity, String> {
     Flux<IncomeRecordEntity> findAllByUserId(Long userId);
-    Flux<IncomeRecordEntity> findByAccountId(String accountId);
+    Flux<IncomeRecordEntity> findAllByAccountId(String accountId);
 }
