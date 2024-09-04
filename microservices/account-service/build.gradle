@@ -45,7 +45,6 @@ dependencies {
 	testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
 	testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
-
 	//mapStruct
 	implementation "org.mapstruct:mapstruct:${mapStructVersion}"
 	annotationProcessor "org.mapstruct:mapstruct-processor:${mapStructVersion}"
@@ -62,8 +61,8 @@ dependencies {
 	//eureka
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
-
 	//springBootStarters
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -82,7 +81,6 @@ dependencyManagement {
 tasks.named('test') {
 	useJUnitPlatform()
 }
-
 
 tasks.named('bootJar') {
 	mainClass = "hu.therealuhlarzoltan.expensables.microservices.account.${mainClassName}"

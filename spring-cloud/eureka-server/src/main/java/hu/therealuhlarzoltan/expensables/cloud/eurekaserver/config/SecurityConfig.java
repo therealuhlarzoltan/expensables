@@ -28,7 +28,7 @@ public class SecurityConfig {
                 .username(username)
                 .password(password)
                 .passwordEncoder(passwordEncoder()::encode)
-                .roles("EUREKA_CLIENT   ")
+                .roles("EUREKA_CLIENT")
                 .build();
         return new InMemoryUserDetailsManager(user);
     }

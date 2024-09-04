@@ -42,6 +42,9 @@ springdoc:
     - hu.therealuhlarzoltan.expensables.microservices.income
     - hu.therealuhlarzoltan.expensables.api.microservices.core.income
 
+management.endpoint.health.show-details: "ALWAYS"
+management.endpoints.web.exposure.include: "*"
+
 logging:
   level:
     root: INFO

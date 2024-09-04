@@ -11,12 +11,18 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/api" />
             <option value="$PROJECT_DIR$/microservices" />
+            <option value="$PROJECT_DIR$/microservices/account-client" />
             <option value="$PROJECT_DIR$/microservices/account-service" />
+            <option value="$PROJECT_DIR$/microservices/cashflow-client" />
+            <option value="$PROJECT_DIR$/microservices/exchange-service" />
             <option value="$PROJECT_DIR$/microservices/expense-service" />
             <option value="$PROJECT_DIR$/microservices/income-service" />
+            <option value="$PROJECT_DIR$/microservices/transaction-client" />
             <option value="$PROJECT_DIR$/microservices/transaction-service" />
             <option value="$PROJECT_DIR$/spring-cloud" />
+            <option value="$PROJECT_DIR$/spring-cloud/api-gateway" />
             <option value="$PROJECT_DIR$/spring-cloud/auth-server" />
+            <option value="$PROJECT_DIR$/spring-cloud/config-server" />
             <option value="$PROJECT_DIR$/spring-cloud/eureka-server" />
             <option value="$PROJECT_DIR$/util" />
           </set>
@@ -30,6 +36,10 @@
             <option value="$PROJECT_DIR$/microservices/income-service" />
           </set>
         </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/microservices/transaction-client" />
+        <option name="gradleJvm" value="17" />
       </GradleProjectSettings>
     </option>
   </component>
