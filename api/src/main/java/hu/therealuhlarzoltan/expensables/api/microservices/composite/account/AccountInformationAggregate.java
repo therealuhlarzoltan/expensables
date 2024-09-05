@@ -1,9 +1,18 @@
 package hu.therealuhlarzoltan.expensables.api.microservices.composite.account;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AccountInformationAggregate {
     private String accountId;
     private String accountName;

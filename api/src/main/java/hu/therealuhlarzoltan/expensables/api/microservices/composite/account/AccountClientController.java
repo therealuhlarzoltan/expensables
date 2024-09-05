@@ -4,18 +4,18 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 public interface AccountClientController {
-    @GetMapping("/api/accounts/{accountId}")
+    @GetMapping(value = "/api/accounts/{accountId}", produces = "application/json")
     Mono<AccountInformation> getAccountInformation(@PathVariable String accountId);
 
-    @GetMapping("/api/accounts/{accountId}/details")
+    @GetMapping(value = "/api/accounts/{accountId}/details", produces = "application/json")
     Mono<AccountInformationAggregate> getAccountDetails(@PathVariable String accountId);
 
-    @PostMapping("/api/accounts/{accountId}")
-    Mono<AccountInformation> createAccount(@PathVariable String accountId);
+    @PostMapping(value = "/api/accounts", produces = "application/json", consumes = "application/json")
+    Mono<AccountInformation> createAccount(@RequestBody AccountInformation accountInformation);
 
-    @PutMapping("/api/accounts/{accountId}")
-    Mono<AccountInformation> updateAccount(@PathVariable String accountId);
+    @PutMapping(value = "/api/accounts/{accountId}", produces = "application/json", consumes = "application/json")
+    Mono<AccountInformation> updateAccount(@PathVariable String accountId, @RequestBody AccountInformation accountInformation);
 
-    @DeleteMapping("/api/accounts/{accountId}")
+    @DeleteMapping(value = "/api/accounts/{accountId}", produces = "application/json")
     Mono<Void> deleteAccount(@PathVariable String accountId);
 }

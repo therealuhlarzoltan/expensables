@@ -6,6 +6,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Mono;
 
 public interface ExchangeController {
-    @PostMapping("/api/exchange")
+    @PostMapping(value ="/api/exchange", produces = "application/json", consumes = "application/json")
     Mono<ExchangeResponse> exchangeCurrency(@Valid @RequestBody ExchangeRequest exchangeRequest);
 }

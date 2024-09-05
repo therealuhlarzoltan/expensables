@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -88,11 +89,11 @@ public class GlobalExceptionHandler {
 
     private ApiError createApiError(Exception ex, HttpStatus status) {
         LOG.info("Returning error response: {}, with status: {}", ex.getMessage(), status);
-        return new ApiError(ex.getMessage(), status, LocalDateTime.now());
+        return new ApiError(ex.getMessage(), status, ZonedDateTime.now());
     }
 
     private ApiError createApiError(String message, HttpStatus status) {
         LOG.info("Returning error response: {}, with status: {}", message, status);
-        return new ApiError(message, status, LocalDateTime.now());
+        return new ApiError(message, status, ZonedDateTime.now());
     }
 }

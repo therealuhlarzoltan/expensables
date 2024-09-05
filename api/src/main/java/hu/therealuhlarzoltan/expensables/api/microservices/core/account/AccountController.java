@@ -15,7 +15,7 @@ public interface AccountController {
             @ApiResponse(responseCode = "404", description = "Owner not found if filtering by owner ID"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    @GetMapping("/api/accounts")
+    @GetMapping(value = "/api/accounts", produces = "application/json")
     Flux<Account> getAccounts(@Parameter(description = "Optional owner ID to filter accounts by", required = false)
                               @RequestParam(required = false) Long ownerId);
 
@@ -23,7 +23,7 @@ public interface AccountController {
             @ApiResponse(responseCode = "200", description = "Successful retrieval of the account"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    @GetMapping("/api/accounts/{accountId}")
+    @GetMapping(value = "/api/accounts/{accountId}", produces = "application/json")
     Mono<Account> getAccountById(@Parameter(description = "UUID of the account to retrieve", required = true)
                                  @PathVariable UUID accountId);
 
@@ -32,7 +32,7 @@ public interface AccountController {
             @ApiResponse(responseCode = "201", description = "Account created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
-    @PostMapping("/api/accounts")
+    @PostMapping(value = "/api/accounts", produces = "application/json", consumes = "application/json")
     Mono<Account> createAccount(@Parameter(description = "Details of the account to be created", required = true)
                                 @RequestBody Account account);
 
@@ -40,7 +40,7 @@ public interface AccountController {
             @ApiResponse(responseCode = "200", description = "Account updated successfully"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    @PutMapping("/api/accounts")
+    @PutMapping(value = "/api/accounts", produces = "application/json", consumes = "application/json")
     Mono<Account> updateAccount(@Parameter(description = "Updated details of the account", required = true)
                                 @RequestBody Account account);
 
@@ -48,7 +48,7 @@ public interface AccountController {
             @ApiResponse(responseCode = "200", description = "Account deleted successfully"),
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
-    @DeleteMapping("/api/accounts/{accountId}")
+    @DeleteMapping(value = "/api/accounts/{accountId}", produces = "application/json")
     Mono<Void> deleteAccount(@Parameter(description = "UUID of the account to delete", required = true)
                              @PathVariable UUID accountId);
 
