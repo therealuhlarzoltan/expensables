@@ -54,8 +54,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 
 	//rabbitMQ
-	implementation 'org.springframework.boot:spring-boot-starter-amqp'
-	implementation 'org.springframework.amqp:spring-rabbit-stream'
+	implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
 	testImplementation 'org.springframework.amqp:spring-rabbit-test'
 
 	//eureka

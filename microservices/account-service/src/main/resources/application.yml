@@ -17,6 +17,31 @@ spring:
     database: bank_account_db
     auto-index-creation: true
 
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+
+spring.cloud.function.definition: messageProcessor
+
+spring.cloud.stream:
+  defaultBinder: rabbit
+  default.contentType: application/json
+  bindings.messageProcessor-in-0:
+    destination: accounts
+    group: accountsGroup
+
+spring.cloud.stream.bindings.messageProcessor-in-0.consumer:
+  maxAttempts: 3
+  backOffInitialInterval: 500
+  backOffMaxInterval: 1000
+  backOffMultiplier: 2.0
+
+spring.cloud.stream.rabbit.bindings.messageProcessor-in-0.consumer:
+  autoBindDlq: true
+  republishToDlq: true
+
 springdoc:
   swagger-ui:
     path: /openapi/swagger-ui.html
@@ -46,9 +71,14 @@ logging:
     hu.therealuhlarzoltan: INFO
     org.springframework.data.mongodb.core.MongoTemplate: DEBUG
     org.springdoc: INFO
+    org.springframework.cloud.stream: DEBUG
 
 ---
 spring.config.activate.on-profile: docker
+
+spring:
+  rabbitmq:
+    host: rabbitmq
 
 app:
   eureka-server-1: eureka-server-1
@@ -60,3 +90,22 @@ eureka:
   client:
     serviceUrl:
         defaultZone: http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-1}:8761/eureka/, http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-2}:8761/eureka/
+
+---
+spring.config.activate.on-profile: partitioned
+
+spring.cloud.stream.bindings.messageProcessor-in-0.consumer:
+  partitioned: true
+  instanceCount: 2
+
+---
+spring.config.activate.on-profile: partition_instance_0
+
+spring.cloud.stream.bindings.messageProcessor-in-0.consumer:
+  instanceIndex: 0
+
+---
+spring.config.activate.on-profile: partition_instance_1
+
+spring.cloud.stream.bindings.messageProcessor-in-0.consumer:
+  instanceIndex: 1

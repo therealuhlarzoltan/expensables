@@ -20,6 +20,11 @@ public class AccountEvent<K, T> extends Event<K, T> {
 
     private final Type eventType;
 
+    public AccountEvent() {
+        super();
+        this.eventType = null;
+    }
+
     public AccountEvent(Type eventType, K key, T data) {
         super(key, data);
         this.eventType = eventType;

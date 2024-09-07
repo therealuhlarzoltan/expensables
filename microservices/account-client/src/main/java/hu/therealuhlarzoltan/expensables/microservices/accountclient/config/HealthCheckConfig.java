@@ -19,7 +19,10 @@ public class HealthCheckConfig {
     @Bean
     public ReactiveHealthContributor coreServices() {
         final Map<String, ReactiveHealthIndicator> registry = new LinkedHashMap<>();
-
+        registry.put("account-service", () -> healthService.getAccountHealth());
+        registry.put("income-service", () -> healthService.getIncomeHealth());
+        registry.put("expense-service", () -> healthService.getExpenseHealth());
+        registry.put("transaction-service", () -> healthService.getTransactionHealth());
         return CompositeReactiveHealthContributor.fromMap(registry);
     }
 }

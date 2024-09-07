@@ -10,6 +10,11 @@ public class CrudEvent<K, T> extends  Event<K, T> {
 
     private final Type eventType;
 
+    public CrudEvent() {
+        super();
+        this.eventType = null;
+    }
+
     public CrudEvent(Type eventType, K key, T data) {
         super(key, data);
         this.eventType = eventType;
@@ -19,7 +24,4 @@ public class CrudEvent<K, T> extends  Event<K, T> {
     public Type getEventType() {
         return eventType;
     }
-
-
-
 }
