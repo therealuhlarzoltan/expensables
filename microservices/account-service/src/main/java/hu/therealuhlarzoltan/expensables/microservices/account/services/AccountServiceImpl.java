@@ -74,7 +74,7 @@ public class AccountServiceImpl implements  AccountService {
     @Override
     public Mono<Void> deleteAccount(UUID accountId) {
         LOG.info("Will delete account with id={}", accountId);
-        return accountRepository.deleteById(accountId.toString());
+        return accountRepository.deleteByEntityId(accountId.toString());
     }
 
     @Override

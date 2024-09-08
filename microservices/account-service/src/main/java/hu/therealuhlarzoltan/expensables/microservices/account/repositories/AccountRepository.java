@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface AccountRepository extends ReactiveMongoRepository<AccountEntity, String> {
     Mono<AccountEntity> findByEntityId(String entityId);
     Flux<AccountEntity> findByOwnerId(Long ownerId);
+    Mono<Void> deleteByEntityId(String entityId);
 }

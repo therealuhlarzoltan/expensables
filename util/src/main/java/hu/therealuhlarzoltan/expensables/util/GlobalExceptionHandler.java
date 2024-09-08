@@ -3,6 +3,7 @@ package hu.therealuhlarzoltan.expensables.util;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InsufficientFundsException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -37,9 +38,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InsufficientFundsException.class)
-    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ResponseStatus(HttpStatus.PRECONDITION_FAILED)
     public ResponseEntity<ApiError> handleInsufficientFundsException(InsufficientFundsException e) {
-        return new ResponseEntity<>(createApiError(e, HttpStatus.FORBIDDEN), HttpStatus.FORBIDDEN);
+        return new ResponseEntity<>(createApiError(e, HttpStatus.PRECONDITION_FAILED), HttpStatus.PRECONDITION_FAILED);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -78,6 +79,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ResponseEntity<ApiError> handleDuplicateKeyException(DuplicateKeyException e) {
         return new ResponseEntity<>(createApiError("Id already exists", HttpStatus.CONFLICT), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(ServiceResponseException.class)
+    public ResponseEntity<ApiError> handleServiceResponseException(ServiceResponseException e) {
+        var error = createApiError(e.getMessage(), e.getResponseStatus());
+        return new ResponseEntity<>(error, e.getResponseStatus());
     }
 
     /*@ExceptionHandler(Exception.class)

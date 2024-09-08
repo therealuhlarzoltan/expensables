@@ -8,7 +8,6 @@ import hu.therealuhlarzoltan.expensables.api.microservices.events.Event;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
 import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +26,7 @@ import reactor.core.scheduler.Scheduler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 
 import static java.util.logging.Level.FINE;
 
@@ -72,10 +72,11 @@ public class AccountIntegrationImpl implements AccountIntegration {
     }
 
     @Override
-    public Mono<AccountInformation> createAccount(Account account) {
+    public Mono<AccountInformation> createAccount(Account account, Optional<String> correlationId) {
         LOG.info("Will call the createAccount API from the integration layer with body: {}", account);
+        String corrId = correlationId.orElse(null);
         return Mono.fromCallable(() -> {
-            sendMessage("accounts-out-0", new CrudEvent<String, Account>(CrudEvent.Type.CREATE, account.getAccountId(), account));
+            sendMessage("accounts-out-0", corrId, new CrudEvent<String, Account>(CrudEvent.Type.CREATE, account.getAccountId(), account));
             account.setVersion(0);
             return AccountInformation.builder()
                     .accountId(account.getAccountId())
@@ -91,6 +92,40 @@ public class AccountIntegrationImpl implements AccountIntegration {
         }).subscribeOn(publishEventScheduler);
     }
 
+    @Override
+    public Mono<AccountInformation> updateAccount(Account account, Optional<String> correlationId) {
+        LOG.info("Will call the updateAccount API from the integration layer with body: {}", account);
+        String corrId = correlationId.orElse(null);
+        return Mono.fromCallable(() -> {
+            sendMessage("accounts-out-0", corrId, new CrudEvent<String, Account>(CrudEvent.Type.UPDATE, account.getAccountId(), account));
+            return AccountInformation.builder()
+                    .accountId(account.getAccountId())
+                    .accountName(account.getAccountName())
+                    .accountType(account.getAccountType())
+                    .accountCategory(account.getAccountCategory())
+                    .balance(account.getBalance())
+                    .bankName(account.getBankName())
+                    .currency(account.getCurrency())
+                    .ownerId(account.getOwnerId())
+                    .version(account.getVersion() + 1)
+                    .build();
+        }).subscribeOn(publishEventScheduler);
+    }
+
+    @Override
+    public Mono<Void> deleteAccount(Account account) {
+        LOG.info("Will call the deleteAccount API from the integration layer with accountId: {}", account.getAccountId());
+        return Mono.fromRunnable(() -> sendMessage("accounts-out-0", new CrudEvent<String, Account>(CrudEvent.Type.DELETE, account.getAccountId(), account)));
+    }
+
+    private void sendMessage(String bindingName, String correlationId, Event<?, ?> event) {
+        LOG.debug("Sending a {} message to {}", event.getEventType(), bindingName);
+        Message message = MessageBuilder.withPayload(event)
+                .setHeader("partitionKey", event.getKey())
+                .setHeader("correlationId", correlationId)
+                .build();
+        streamBridge.send(bindingName, message);
+    }
 
     private void sendMessage(String bindingName, Event<?, ?> event) {
         LOG.debug("Sending a {} message to {}", event.getEventType(), bindingName);

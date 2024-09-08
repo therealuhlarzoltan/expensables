@@ -31,7 +31,6 @@
         <module name="microserviceLandscape.microservices.cashflow-client.main" />
         <module name="microserviceLandscape.microservices.income-service.test" />
         <module name="microserviceLandscape.util.test" />
-        <module name="microserviceLandscape.microservices.account-client.main" />
         <module name="microserviceLandscape.microservices.account-client.test" />
         <module name="microserviceLandscape.util.main" />
       </profile>
@@ -52,8 +51,9 @@
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.mapstruct/mapstruct-processor/1.5.5.Final/897f6f115930b936287bef552bf5fe28cc64717d/mapstruct-processor-1.5.5.Final.jar" />
         </processorPath>
         <module name="microserviceLandscape.microservices.transaction-service.main" />
-        <module name="microserviceLandscape.microservices.expense-service.main" />
+        <module name="microserviceLandscape.microservices.account-client.main" />
         <module name="microserviceLandscape.microservices.income-service.main" />
+        <module name="microserviceLandscape.microservices.expense-service.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="22" />

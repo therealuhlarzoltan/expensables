@@ -28,9 +28,15 @@ spring.cloud.function.definition: messageProcessor
 spring.cloud.stream:
   defaultBinder: rabbit
   default.contentType: application/json
-  bindings.messageProcessor-in-0:
-    destination: accounts
-    group: accountsGroup
+  bindings:
+    messageProcessor-in-0:
+      destination: accounts
+      group: accountsGroup
+    accountResponses-out-0:
+      destination: accountResponses
+      producer:
+        requiredGroups: auditGroup
+      contentType: application/json
 
 spring.cloud.stream.bindings.messageProcessor-in-0.consumer:
   maxAttempts: 3
