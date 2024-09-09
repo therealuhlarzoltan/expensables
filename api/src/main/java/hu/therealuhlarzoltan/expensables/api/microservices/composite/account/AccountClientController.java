@@ -1,5 +1,6 @@
 package hu.therealuhlarzoltan.expensables.api.microservices.composite.account;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -17,5 +18,6 @@ public interface AccountClientController {
     Mono<AccountInformation> updateAccount(@PathVariable String accountId, @RequestBody AccountInformation accountInformation);
 
     @DeleteMapping(value = "/api/accounts/{accountId}", produces = "application/json")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     Mono<Void> deleteAccount(@PathVariable String accountId);
 }

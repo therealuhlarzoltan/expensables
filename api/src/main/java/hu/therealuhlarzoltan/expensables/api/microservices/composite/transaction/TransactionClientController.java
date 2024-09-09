@@ -1,5 +1,6 @@
 package hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -11,5 +12,6 @@ public interface TransactionClientController {
     @PutMapping(value = "/api/transactions/{transactionId}", produces = "application/json", consumes = "application/json")
     Mono<TransactionInfo> updateTransaction(@PathVariable String transactionId, @RequestBody TransactionRequest transactionRequest);
     @DeleteMapping(value = "/api/transactions/{transactionId}", produces = "application/json")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     Mono<Void> deleteTransaction(@PathVariable String transactionId);
 }

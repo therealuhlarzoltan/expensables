@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -53,7 +54,7 @@ public class AccountClientServiceImpl implements AccountClientService {
                 .build();
         LOG.info("Will call the integration layer to create a new account with body: {}", accountApi);
         return integration.createAccount(accountApi, Optional.of(correlationId))
-                .then(responseListener.waitForResponse(correlationId))
+                .then(responseListener.waitForResponse(correlationId, Duration.ofSeconds(5)))
                 .flatMap(response -> {
                     if (response.getEventType() == HttpResponseEvent.Type.SUCCESS) {
                         String jsonString = response.getData().getMessage();
@@ -85,7 +86,7 @@ public class AccountClientServiceImpl implements AccountClientService {
                 .version(account.getVersion())
                 .build();
         return integration.updateAccount(accountApi, Optional.of(correlationId))
-                .then(responseListener.waitForResponse(correlationId))
+                .then(responseListener.waitForResponse(correlationId, Duration.ofSeconds(5)))
                 .flatMap(response -> {
                   if (response.getEventType() == HttpResponseEvent.Type.SUCCESS) {
                       String jsonString = response.getData().getMessage();

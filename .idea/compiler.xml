@@ -28,7 +28,6 @@
         <module name="microserviceLandscape.microservices.transaction-service.test" />
         <module name="microserviceLandscape.spring-cloud.auth-server.test" />
         <module name="microserviceLandscape.microservices.transaction-client.main" />
-        <module name="microserviceLandscape.microservices.cashflow-client.main" />
         <module name="microserviceLandscape.microservices.income-service.test" />
         <module name="microserviceLandscape.util.test" />
         <module name="microserviceLandscape.microservices.account-client.test" />
@@ -53,6 +52,7 @@
         <module name="microserviceLandscape.microservices.transaction-service.main" />
         <module name="microserviceLandscape.microservices.account-client.main" />
         <module name="microserviceLandscape.microservices.income-service.main" />
+        <module name="microserviceLandscape.microservices.cashflow-client.main" />
         <module name="microserviceLandscape.microservices.expense-service.main" />
       </profile>
     </annotationProcessing>
