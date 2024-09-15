@@ -22,16 +22,15 @@
         <module name="microserviceLandscape.microservices.cashflow-client.test" />
         <module name="microserviceLandscape.microservices.transaction-client.test" />
         <module name="microserviceLandscape.microservices.expense-service.test" />
+        <module name="microserviceLandscape.microservices.income-service.test" />
+        <module name="microserviceLandscape.util.test" />
         <module name="microserviceLandscape.api.test" />
         <module name="microserviceLandscape.spring-cloud.auth-server.main" />
         <module name="microserviceLandscape.api.main" />
-        <module name="microserviceLandscape.microservices.transaction-service.test" />
-        <module name="microserviceLandscape.spring-cloud.auth-server.test" />
-        <module name="microserviceLandscape.microservices.transaction-client.main" />
-        <module name="microserviceLandscape.microservices.income-service.test" />
-        <module name="microserviceLandscape.util.test" />
         <module name="microserviceLandscape.microservices.account-client.test" />
         <module name="microserviceLandscape.util.main" />
+        <module name="microserviceLandscape.microservices.transaction-service.test" />
+        <module name="microserviceLandscape.spring-cloud.auth-server.test" />
       </profile>
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
@@ -54,6 +53,7 @@
         <module name="microserviceLandscape.microservices.income-service.main" />
         <module name="microserviceLandscape.microservices.cashflow-client.main" />
         <module name="microserviceLandscape.microservices.expense-service.main" />
+        <module name="microserviceLandscape.microservices.transaction-client.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="22" />

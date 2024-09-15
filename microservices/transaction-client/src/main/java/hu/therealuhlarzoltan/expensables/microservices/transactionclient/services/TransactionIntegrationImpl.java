@@ -1,13 +1,15 @@
 package hu.therealuhlarzoltan.expensables.microservices.transactionclient.services;
 
+import hu.therealuhlarzoltan.expensables.api.microservices.events.ResponsePayload;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
+import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.AccountGateway;
+import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.ExchangeGateway;
+import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.TransactionGateway;
 import org.springframework.messaging.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.account.Account;
-import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeRequest;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeResponse;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
-import hu.therealuhlarzoltan.expensables.api.microservices.events.AccountEvent;
-import hu.therealuhlarzoltan.expensables.api.microservices.events.CrudEvent;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.Event;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
@@ -22,7 +24,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import org.springframework.cloud.stream.function.StreamBridge;
@@ -30,6 +32,8 @@ import org.springframework.cloud.stream.function.StreamBridge;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 import static java.util.logging.Level.FINE;
 
@@ -43,8 +47,11 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
     @Value("${app.exchange-service-url}")
     private String EXCHANGE_SERVICE_URL;
 
+    private final AccountGateway accountGateway;
+    private final ExchangeGateway exchangeGateway;
+    private final TransactionGateway transactionGateway;
     private final WebClient webClient;
-    private final ObjectMapper mapper;
+    private final ObjectMapper objectMapper;
 
     private final StreamBridge streamBridge;
 
@@ -55,11 +62,17 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
             @Qualifier("publishEventScheduler") Scheduler publishEventScheduler,
             WebClient webClient,
             ObjectMapper mapper,
-            StreamBridge streamBridge) {
+            StreamBridge streamBridge,
+            AccountGateway accountGateway,
+            ExchangeGateway exchangeGateway,
+            TransactionGateway transactionGateway) {
         this.publishEventScheduler = publishEventScheduler;
         this.webClient = webClient;
-        this.mapper = mapper;
+        this.objectMapper = mapper;
         this.streamBridge = streamBridge;
+        this.accountGateway = accountGateway;
+        this.exchangeGateway = exchangeGateway;
+        this.transactionGateway = transactionGateway;
     }
 
     @Override
@@ -69,12 +82,20 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
 
     @Override
     public Mono<TransactionRecord> getTransaction(String transactionId) {
-        URI url = UriComponentsBuilder.fromUriString(TRANSACTION_SERVICE_URL + "/api/transactions/{transactionId}").build(transactionId);
-        LOG.debug("Will call the getTransaction API on URL: {}", url);
+        LOG.info("Will delegate the getTransaction API call to the TransactionGateway");
+        return transactionGateway.getTransaction(transactionId);
+    }
 
-        return webClient.get().uri(url)
-                .retrieve().bodyToMono(TransactionRecord.class).log(LOG.getName(), FINE)
-                .onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+    @Override
+    public Flux<TransactionRecord> getOutgoingTransactions(String accountId) {
+        LOG.info("Will delegate the getOutgoingTransactions API call to the TransactionGateway");
+        return transactionGateway.getOutgoingTransactions(accountId);
+    }
+
+    @Override
+    public Flux<TransactionRecord> getIncomingTransactions(String accountId) {
+        LOG.info("Will delegate the getIncomingTransactions API call to the TransactionGateway");
+        return transactionGateway.getIncomingTransactions(accountId);
     }
 
     @Override
@@ -82,25 +103,22 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
         return null;
     }
 
-
     @Override
-    public Mono<ExchangeResponse> exchangeCurrency(ExchangeRequest exchangeRequest) {
-        URI url = URI.create(EXCHANGE_SERVICE_URL + "/api/exchange");
-        LOG.debug("Will call the exchangeCurrency API on URL: {}", url);
-
-        return webClient.post().uri(url).bodyValue(exchangeRequest)
-                .retrieve().bodyToMono(ExchangeResponse.class).log(LOG.getName(), FINE)
-                .onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+    public Mono<ExchangeResponse> exchangeCurrency(String fromCurrency, String toCurrency, BigDecimal amount) {
+        LOG.debug("Will delegate the exchangeCurrency API call to the ExchangeGateway");
+        return exchangeGateway.makeExchange(fromCurrency, toCurrency, amount);
     }
 
     @Override
     public Mono<Account> getAccount(String accountId) {
-        URI url = UriComponentsBuilder.fromUriString(ACCOUNT_SERVICE_URL + "/api/accounts/{accountId}").build(accountId);
-        LOG.debug("Will call the getTransaction API on URL: {}", url);
+        LOG.info("Will delegate the getAccount API call to the AccountGateway");
+        return accountGateway.getAccount(accountId);
+    }
 
-        return webClient.get().uri(url)
-                .retrieve().bodyToMono(Account.class).log(LOG.getName(), FINE)
-                .onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+    @Override
+    public Mono<Account> getAccountWithFallback(String accountId) {
+        LOG.info("Will delegate the getAccountWithFallback API call to the AccountGateway");
+        return accountGateway.getAccountWithFallback(accountId);
     }
 
     @Override
@@ -113,6 +131,10 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
       return null;
     }
 
+    @Override
+    public Mono<String> getAccountCurrency(String accountId) {
+        return  accountGateway.getAccountCurrency(accountId);
+    }
 
     private void sendMessage(String bindingName, Event<?, ?> event) {
         LOG.debug("Sending a {} message to {}", event.getEventType(), bindingName);
@@ -144,9 +166,68 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
         }
     }
 
+    private <T> Mono<T> getForSingleReactive(URI url, Class<T> clazz, Duration timeout) {
+        return webClient.get().uri(url)
+                .retrieve().bodyToMono(clazz)
+                .timeout(timeout)
+                .log(LOG.getName(), FINE)
+                .onErrorMap(Throwable.class, ex -> handleWebClientException(ex));
+    }
+
+    private <T> Flux<T> getForManyReactive(URI url, Class<T> clazz, Duration timeout) {
+        return webClient.get().uri(url)
+                .retrieve().bodyToFlux(clazz)
+                .timeout(timeout)
+                .log(LOG.getName(), FINE)
+                .onErrorMap(Throwable.class, ex -> handleWebClientException(ex));
+    }
+
+    private <T> T deserializeObjectFromJson(String json, Class<T> clazz) {
+        T obj = null;
+        try {
+            obj = objectMapper.readValue(json, clazz);
+        } catch (IOException e) {
+            LOG.error("Couldn't deserialize object from json: {}", e.getMessage());
+        }
+        return obj;
+    }
+
+    private Throwable createMessageResponseError(ResponsePayload data) {
+        return new ServiceResponseException(data.getMessage(), data.getStatus());
+    }
+
+    private Throwable handleWebClientException(Throwable ex) {
+
+        if (!(ex instanceof WebClientResponseException) && !(ex instanceof TimeoutException)) {
+            LOG.warn("Got a unexpected error: {}, will rethrow it", ex.toString());
+            return ex;
+        }
+        if (ex instanceof TimeoutException) {
+            return new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY);
+        }
+
+        WebClientResponseException wcre = (WebClientResponseException)ex;
+
+        if (wcre.getStatusCode().is5xxServerError()) {
+            return new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY);
+        }
+
+        switch (HttpStatus.resolve(wcre.getStatusCode().value())) {
+            case NOT_FOUND:
+                return new NotFoundException(getErrorMessage(wcre));
+            case BAD_REQUEST, UNPROCESSABLE_ENTITY:
+                return new InvalidInputDataException(getErrorMessage(wcre));
+
+            default:
+                LOG.warn("Got an unexpected HTTP error: {}, will rethrow it", wcre.getStatusCode());
+                LOG.warn("Error body: {}", wcre.getResponseBodyAsString());
+                return ex;
+        }
+    }
+
     private String getErrorMessage(WebClientResponseException ex) {
         try {
-            return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
+            return objectMapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
         } catch (IOException ioex) {
             return ex.getMessage();
         }
