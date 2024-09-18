@@ -131,7 +131,7 @@ public class AccountGatewayImpl implements AccountGateway {
     private <T> Mono<T> getForSingleReactive(URI url, Class<T> clazz) {
         return webClient.get().uri(url)
                 .retrieve().bodyToMono(clazz)
-                .log(LOG.getName(), FINE)
+                 .log(LOG.getName(), FINE)
                 .onErrorMap(Throwable.class, ex -> handleWebClientException(ex));
     }
 

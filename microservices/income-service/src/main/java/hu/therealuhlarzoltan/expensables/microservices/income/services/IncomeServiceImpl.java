@@ -15,8 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @Validated
@@ -53,7 +52,7 @@ public class IncomeServiceImpl implements IncomeService {
         if (incomeRecord.getId() != null && incomeRecord.getId().length() != 24)
             throw new InvalidInputDataException("Id must be 24 characters long");
         incomeRecord.setVersion(null); //handled by mongo
-        incomeRecord.setTimestamp(LocalDate.now());
+        incomeRecord.setTimestamp(LocalDateTime.now());
         return repository.save(incomeRecord)
                 .onErrorMap(
                         DuplicateKeyException.class,
@@ -72,7 +71,6 @@ public class IncomeServiceImpl implements IncomeService {
                     existingRecord.setCurrency(incomeRecord.getCurrency());
                     existingRecord.setAmount(incomeRecord.getAmount());
                     existingRecord.setCategory(incomeRecord.getCategory());
-                    existingRecord.setTimestamp(LocalDate.now());
                     return repository.save(existingRecord);
                 })
                 .map(mapper::entityToIncomeRecord);

@@ -3,11 +3,19 @@ package hu.therealuhlarzoltan.expensables.microservices.accountclient.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.account.AccountInformation;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.account.Account;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.expense.ExpenseRecord;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.CrudEvent;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.Event;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.AccountGateway;
+import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.ExpenseGateway;
+import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.IncomeGateway;
+import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.TransactionGateway;
 import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
@@ -34,16 +43,10 @@ import static java.util.logging.Level.FINE;
 public class AccountIntegrationImpl implements AccountIntegration {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccountIntegrationImpl.class);
-
-    @Value("${app.account-service-url}")
-    private String ACCOUNT_SERVICE_URL;
-    @Value("${app.expense-service-url}")
-    private String EXPENSE_SERVICE_URL;
-    @Value("${app.income-service-url}")
-    private String INCOME_SERVICE_URL;
-    @Value("${app.transaction-service-url}")
-    private String TRANSACTION_SERVICE_URL;
-
+    private final AccountGateway accountGateway;
+    private final IncomeGateway incomeGateway;
+    private final ExpenseGateway expenseGateway;
+    private final TransactionGateway transactionGateway;
     private final Scheduler publishEventScheduler;
     private final StreamBridge streamBridge;
     private final WebClient webClient;
@@ -54,21 +57,79 @@ public class AccountIntegrationImpl implements AccountIntegration {
             @Qualifier("publishEventScheduler") Scheduler publishEventScheduler,
             WebClient webClient,
             ObjectMapper mapper,
-            StreamBridge streamBridge) {
+            StreamBridge streamBridge,
+            AccountGateway accountGateway,
+            IncomeGateway incomeGateway,
+            ExpenseGateway expenseGateway,
+            TransactionGateway transactionGateway) {
         this.publishEventScheduler = publishEventScheduler;
         this.webClient = webClient;
         this.mapper = mapper;
         this.streamBridge = streamBridge;
+        this.accountGateway = accountGateway;
+        this.incomeGateway = incomeGateway;
+        this.expenseGateway = expenseGateway;
+        this.transactionGateway = transactionGateway;
     }
 
     @Override
-    public Mono<AccountInformation> getAccountInformation(String accountId) {
-        URI url = UriComponentsBuilder.fromUriString(ACCOUNT_SERVICE_URL + "/api/accounts/{transactionId}").build(accountId);
-        LOG.debug("Will call the getAccount API from the integration layer on URL: {}", url);
+    public Mono<Account> getAccount(String accountId) {
+        LOG.debug("Will delegate the getAccount API call to the AccountGateway");
+        return accountGateway.getAccount(accountId);
+    }
 
-        return webClient.get().uri(url)
-                .retrieve().bodyToMono(AccountInformation.class).log(LOG.getName(), FINE)
-                .onErrorMap(WebClientResponseException.class, ex -> handleException(ex));
+    @Override
+    public Flux<IncomeRecord> getIncomes(String accountId) {
+        LOG.debug("Will delegate the getIncomes API call to the IncomeGateway");
+        return incomeGateway.getIncomes(accountId);
+    }
+
+    @Override
+    public Flux<IncomeRecord> getIncomesWithFallback(String accountId) {
+        LOG.debug("Will delegate the getIncomesWithFallback API call to the IncomeGateway");
+        return incomeGateway.getIncomesWithFallback(accountId);
+    }
+
+    @Override
+    public Flux<ExpenseRecord> getExpenses(String accountId) {
+        LOG.debug("Will delegate the getExpenses API call to the ExpenseGateway");
+        return expenseGateway.getExpenses(accountId);
+    }
+
+    @Override
+    public Flux<ExpenseRecord> getExpensesWithFallback(String accountId) {
+        LOG.debug("Will delegate the getExpensesWithFallback API call to the ExpenseGateway");
+        return expenseGateway.getExpensesWithFallback(accountId);
+    }
+
+    @Override
+    public Flux<TransactionRecord> getIncomingTransactions(String accountId) {
+        LOG.debug("Will delegate the getIncomingTransactions API call to the TransactionGateway");
+        return transactionGateway.getIncomingTransactions(accountId);
+    }
+
+    @Override
+    public Flux<TransactionRecord> getIncomingTransactionsWithFallback(String accountId) {
+        LOG.debug("Will delegate the getIncomingTransactionsWithFallback API call to the TransactionGateway");
+        return transactionGateway.getIncomingTransactionsWithFallback(accountId);
+    }
+
+    @Override
+    public Flux<TransactionRecord> getOutgoingTransactions(String accountId) {
+        LOG.debug("Will delegate the getOutgoingTransactions API call to the TransactionGateway");
+        return transactionGateway.getOutgoingTransactions(accountId);
+    }
+
+    @Override
+    public Flux<TransactionRecord> getOutgoingTransactionsWithFallback(String accountId) {
+        LOG.debug("Will delegate the getOutgoingTransactionsWithFallback API call to the TransactionGateway");
+        return transactionGateway.getOutgoingTransactionsWithFallback(accountId);
+    }
+
+    @Override
+    public Mono<Account> getAccountWithFallback(String fromAccountId) {
+        LOG.debug("Will delegate the getAccountWithFallback API call to the AccountGateway");
+        return accountGateway.getAccountWithFallback(fromAccountId);
     }
 
     @Override

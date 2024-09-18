@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data

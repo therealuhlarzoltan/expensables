@@ -13,7 +13,7 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Document(collection = "expense_records")
 @Data
@@ -47,5 +47,5 @@ public class ExpenseRecordEntity {
     @NotNull(message = "Currency is required")
     @Size(min = 3, max = 3, message = "Currency must be 3 characters long")
     private String currency;
-    private LocalDate timestamp;
+    private LocalDateTime timestamp;
 }

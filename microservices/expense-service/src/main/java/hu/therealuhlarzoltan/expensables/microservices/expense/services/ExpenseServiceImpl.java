@@ -17,8 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @Validated
@@ -58,7 +57,7 @@ public class ExpenseServiceImpl  implements ExpenseService {
         if (!categoryValidator.isValid(ExpenseCategory.valueOf(expenseRecord.getCategory()), expenseRecord.getSubCategory()))
             return Mono.error(new InvalidInputDataException("Expense category and subcategory must be the same"));
         expenseRecord.setVersion(null); //handled by mongo
-        expenseRecord.setTimestamp(LocalDate.now());
+        expenseRecord.setTimestamp(LocalDateTime.now());
         return expenseRepository.save(expenseRecord)
                 .onErrorMap(DuplicateKeyException.class,
                         e -> new InvalidInputDataException("Record with id: " + expenseRecord.getId() + " already exists"))
@@ -79,7 +78,6 @@ public class ExpenseServiceImpl  implements ExpenseService {
                     existingRecord.setAmount(expenseRecord.getAmount());
                     existingRecord.setCategory(expenseRecord.getCategory());
                     existingRecord.setSubCategory(expenseRecord.getSubCategory());
-                    existingRecord.setTimestamp(LocalDate.now());
                     return expenseRepository.save(existingRecord);
                 })
                 .map(mapper::entityToExpenseRecord);

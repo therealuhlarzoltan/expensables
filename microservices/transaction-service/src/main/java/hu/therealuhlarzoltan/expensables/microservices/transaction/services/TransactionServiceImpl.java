@@ -16,7 +16,6 @@ import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -89,7 +88,6 @@ public class TransactionServiceImpl implements TransactionService {
                     existingEntity.setToCurrency(entity.getToCurrency());
                     existingEntity.setFromAccountId(entity.getFromAccountId());
                     existingEntity.setToAccountId(entity.getToAccountId());
-                    entity.setTimestamp(LocalDateTime.now());
                     return repository.save(entity);
                 })
                 .map(mapper::entityToApi);

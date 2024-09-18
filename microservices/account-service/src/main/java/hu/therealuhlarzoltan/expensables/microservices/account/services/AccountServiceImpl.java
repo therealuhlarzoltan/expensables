@@ -134,7 +134,6 @@ public class AccountServiceImpl implements  AccountService {
                 .switchIfEmpty(Mono.error(new NotFoundException("No account found for accountId: " + account.getAccountId())))
                 .flatMap(entity -> {
                     entity.setName(newEntity.getName());
-                    entity.setCurrency(newEntity.getCurrency());
                     entity.setBank(newEntity.getBank());
                     entity.setCategory(newEntity.getCategory());
                     entity.setType(newEntity.getType());

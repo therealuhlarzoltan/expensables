@@ -80,6 +80,11 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
         return null;
     }
 
+
+    private Mono<TransactionRecord> createTransactionWithExchange() {
+        return null;
+    }
+
     @Override
     public Mono<TransactionRecord> getTransaction(String transactionId) {
         LOG.info("Will delegate the getTransaction API call to the TransactionGateway");

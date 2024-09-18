@@ -48,5 +48,4 @@ public class ResponseListenerService {
                 .timeout(timeout, Mono.error(new ServiceResponseException("Dependent service failed", HttpStatus.FAILED_DEPENDENCY)))
                 .doOnTerminate(() -> responseSinks.remove(correlationId));
     }
-
 }
