@@ -3,45 +3,20 @@ package hu.therealuhlarzoltan.expensables.microservices.transactionclient.servic
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionInfo;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionRequest;
-import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
-import hu.therealuhlarzoltan.expensables.api.microservices.events.ResponsePayload;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.mappers.TransactionMapper;
-import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
-
-import static java.util.logging.Level.FINE;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionClientServiceImpl implements TransactionClientService {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionClientServiceImpl.class);
-    @Value("${app.transaction-service-url}")
-    private String TRANSACTION_SERVICE_URL;
-    @Value("${app.exchange-service-url}")
-    private String EXCHANGE_SERVICE_URL;
-    @Value("${app.account-service-url}")
-    private String ACCOUNT_SERVICE_URL;
     private final TransactionIntegration integration;
-    private final WebClient webClient;
     private final TransactionMapper transactionMapper;
     private final ObjectMapper objectMapper;
 

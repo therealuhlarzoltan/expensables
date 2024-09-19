@@ -28,7 +28,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.util.concurrent.TimeoutException;
 
-import static java.util.logging.Level.FINE;
+import static hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.WebClientRequests.*;
 
 @Component
 @RequiredArgsConstructor
@@ -36,8 +36,6 @@ public class AccountGatewayImpl implements AccountGateway {
     private final Logger LOG = LoggerFactory.getLogger(AccountGatewayImpl.class);
     @Value("${app.account-service-url}")
     private String ACCOUNT_SERVICE_URL;
-    private final WebClient webClient;
-    private final ObjectMapper objectMapper;
 
     @CircuitBreaker(name = "accountService", fallbackMethod = "handleFallback")
     @Retry(name = "accountService")
@@ -87,7 +85,7 @@ public class AccountGatewayImpl implements AccountGateway {
 
     // Handling timeouts
     public Mono<Account> handleTimeoutFallback(String accountId, TimeoutException ex) {
-        throw new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY);
+        return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
     }
 
     // Handling timeouts with default account
@@ -102,7 +100,7 @@ public class AccountGatewayImpl implements AccountGateway {
     public Mono<Account> handleFallback(String accountId, Throwable ex) {
         // Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
-            return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+            return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
         } else if (ex instanceof CallNotPermittedException) {
             return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
         }
@@ -128,50 +126,6 @@ public class AccountGatewayImpl implements AccountGateway {
         return Mono.error(ex);
     }
 
-    private <T> Mono<T> getForSingleReactive(URI url, Class<T> clazz) {
-        return webClient.get().uri(url)
-                .retrieve().bodyToMono(clazz)
-                 .log(LOG.getName(), FINE)
-                .onErrorMap(Throwable.class, ex -> handleWebClientException(ex));
-    }
-
-    private Throwable handleWebClientException(Throwable ex) {
-        if (!(ex instanceof WebClientResponseException) && !(ex instanceof TimeoutException)) {
-            LOG.warn("Got a unexpected error: {}, will rethrow it", ex.toString());
-            return ex;
-        }
-        if (ex instanceof TimeoutException) {
-            // Time limiter handling this
-            return ex;
-        }
-
-        WebClientResponseException wcre = (WebClientResponseException) ex;
-
-        if (wcre.getStatusCode().is5xxServerError()) {
-            // Circuit breaker handling this
-            return ex;
-        }
-
-        // Resolving error
-        switch (HttpStatus.resolve(wcre.getStatusCode().value())) {
-            case NOT_FOUND:
-                return new NotFoundException(getErrorMessage(wcre));
-            case BAD_REQUEST, UNPROCESSABLE_ENTITY:
-                return new InvalidInputDataException(getErrorMessage(wcre));
-            default:
-                LOG.warn("Got an unexpected HTTP error: {}, will rethrow it", wcre.getStatusCode());
-                LOG.warn("Error body: {}", wcre.getResponseBodyAsString());
-                return ex;
-        }
-    }
-
-    private String getErrorMessage(WebClientResponseException ex) {
-        try {
-            return objectMapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
-        } catch (IOException ioex) {
-            return ex.getMessage();
-        }
-    }
 }
 
 

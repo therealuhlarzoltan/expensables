@@ -40,12 +40,6 @@ import static java.util.logging.Level.FINE;
 @Service
 public class TransactionIntegrationImpl implements TransactionIntegration {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionIntegrationImpl.class);
-    @Value("${app.transaction-service-url}")
-    private String TRANSACTION_SERVICE_URL;
-    @Value("${app.account-service-url}")
-    private String ACCOUNT_SERVICE_URL;
-    @Value("${app.exchange-service-url}")
-    private String EXCHANGE_SERVICE_URL;
 
     private final AccountGateway accountGateway;
     private final ExchangeGateway exchangeGateway;

@@ -9,4 +9,12 @@ public interface CashflowIntegration {
 
     Mono<Void> deleteExpense(String expenseId);
     Mono<Void> deleteIncome(String incomeId);
+
+    Flux<IncomeRecord> getAccountIncomes(String accountId);
+
+    Flux<ExpenseRecord> getAccountExpenses(String accountId);
+
+    Mono<IncomeRecord> getIncome(String incomeId);
+
+    Mono<ExpenseRecord> getExpense(String expenseId);
 }

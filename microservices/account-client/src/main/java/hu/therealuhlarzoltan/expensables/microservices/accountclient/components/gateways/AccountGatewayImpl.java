@@ -62,7 +62,7 @@ public class AccountGatewayImpl implements AccountGateway {
     public Mono<Account> handleFallback(String accountId, Throwable ex) {
         // Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
-            return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+            return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
         } else if (ex instanceof CallNotPermittedException) {
             return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
         }

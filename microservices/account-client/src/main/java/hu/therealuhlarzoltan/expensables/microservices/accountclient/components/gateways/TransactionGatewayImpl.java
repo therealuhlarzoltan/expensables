@@ -132,7 +132,7 @@ public class TransactionGatewayImpl implements TransactionGateway {
     public Mono<TransactionRecord> handleFallbackSingle(String id, Throwable ex) {
         // Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
-            return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+            return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
         } else if (ex instanceof CallNotPermittedException) {
             return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
         }
@@ -162,7 +162,7 @@ public class TransactionGatewayImpl implements TransactionGateway {
     public Flux<TransactionRecord> handleFallbackMany(String id, Throwable ex) {
         // Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
-            return Flux.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+            return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
         } else if (ex instanceof CallNotPermittedException) {
             return Flux.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
         }
