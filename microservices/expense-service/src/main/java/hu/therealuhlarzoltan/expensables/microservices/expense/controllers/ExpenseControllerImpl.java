@@ -57,4 +57,10 @@ public class ExpenseControllerImpl implements ExpenseController {
         LOG.info("Received a DELETE request to delete an expense with id: {}", recordId);
         return service.deleteExpense(recordId);
     }
+
+    @Override
+    public Mono<Void> deleteExpensesByAccount(String accountId) {
+        LOG.info("Received a DELETE request to delete expenses with account id: {}", accountId);
+        return service.deleteExpensesByAccount(accountId);
+    }
 }

@@ -98,4 +98,10 @@ public class TransactionServiceImpl implements TransactionService {
         LOG.info("Deleting transaction with recordId: {}", recordId);
         return repository.deleteById(recordId);
     }
+
+    @Override
+    public Mono<Void> deleteTransactionsByAccount(String accountId) {
+        LOG.info("Deleting all incoming or outgoing transactions for account with accountId: {}", accountId);
+        return repository.deleteAllByFromAccountIdOrToAccountId(accountId, accountId);
+    }
 }

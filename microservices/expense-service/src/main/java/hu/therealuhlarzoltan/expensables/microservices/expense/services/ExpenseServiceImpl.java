@@ -89,4 +89,9 @@ public class ExpenseServiceImpl  implements ExpenseService {
         return expenseRepository.deleteById(recordId);
     }
 
+    @Override
+    public Mono<Void> deleteExpensesByAccount(String accountId) {
+        LOG.info("Will delete all expense records for account with id: {}", accountId);
+        return expenseRepository.deleteAllByAccountId(accountId);
+    }
 }

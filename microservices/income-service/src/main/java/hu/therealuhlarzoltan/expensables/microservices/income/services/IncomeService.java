@@ -13,4 +13,5 @@ public interface IncomeService {
     Mono<IncomeRecord> createIncome(@Valid IncomeRecordEntity incomeRecord);
     Mono<IncomeRecord> updateIncome(@Valid IncomeRecordEntity incomeRecord);
     Mono<Void> deleteIncome(String recordId);
+    Mono<Void> deleteIncomesByAccount(String accountId);
 }

@@ -1,39 +1,21 @@
 package hu.therealuhlarzoltan.expensables.microservices.transaction.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionController;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
-import hu.therealuhlarzoltan.expensables.api.microservices.events.ResponsePayload;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
 import hu.therealuhlarzoltan.expensables.microservices.transaction.components.TransactionMapper;
-import hu.therealuhlarzoltan.expensables.microservices.transaction.repositories.TransactionRepository;
 import hu.therealuhlarzoltan.expensables.microservices.transaction.services.TransactionService;
-import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
-
-import static java.util.logging.Level.FINE;
 
 @RestController
 @RequiredArgsConstructor
@@ -86,5 +68,11 @@ public class TransactionControllerImpl implements TransactionController {
     public Mono<Void> deleteTransaction(@PathVariable String recordId) {
         LOG.info("Received a DELETE request to delete a transaction with recordId: {}", recordId);
         return service.deleteTransaction(recordId);
+    }
+
+    @Override
+    public Mono<Void> deleteTransactionsByAccount(@RequestParam String accountId) {
+        LOG.info("Received a DELETE request to delete all transactions with accountId: {}", accountId);
+        return service.deleteTransactionsByAccount(accountId);
     }
 }

@@ -57,12 +57,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
     testImplementation 'io.projectreactor:reactor-test'
 
-    //eureka
-    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-
     //rabbitMQ
-
-    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
     testImplementation 'org.springframework.amqp:spring-rabbit-test'
 
     //springBoot starters

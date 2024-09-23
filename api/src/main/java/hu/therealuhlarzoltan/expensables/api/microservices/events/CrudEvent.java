@@ -6,6 +6,7 @@ public class CrudEvent<K, T> extends  Event<K, T> {
         CREATE,
         UPDATE,
         DELETE,
+        DELETE_ALL
     }
 
     private final Type eventType;

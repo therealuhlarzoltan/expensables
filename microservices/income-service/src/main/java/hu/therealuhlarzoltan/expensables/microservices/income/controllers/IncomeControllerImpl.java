@@ -56,4 +56,10 @@ public class IncomeControllerImpl implements IncomeController {
         LOG.info("Received a DELETE request for income with ID: {}", recordId);
         return service.deleteIncome(recordId);
     }
+
+    @Override
+    public Mono<Void> deleteIncomesByAccount(String accountId) {
+        LOG.info("Received a DELETE request for incomes by account with ID: {}", accountId);
+        return service.deleteIncomesByAccount(accountId);
+    }
 }

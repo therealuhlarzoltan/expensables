@@ -22,4 +22,5 @@ public interface TransactionService {
     Mono<TransactionRecord> updateTransaction(@Valid TransactionEntity entity);
 
     Mono<Void> deleteTransaction(String recordId);
+    Mono<Void> deleteTransactionsByAccount(String accountId);
 }

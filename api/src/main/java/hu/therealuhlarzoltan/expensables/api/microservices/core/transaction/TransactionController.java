@@ -20,4 +20,6 @@ public interface TransactionController {
     Mono<TransactionRecord> updateTransaction(@RequestBody TransactionRecord transactionRecord);
     @DeleteMapping(value = "/api/transactions/{recordId}", produces = "application/json")
     Mono<Void> deleteTransaction(@PathVariable String recordId);
+    @DeleteMapping(value = "/api/transactions", produces = "application/json")
+    Mono<Void> deleteTransactionsByAccount(@RequestParam String accountId);
 }

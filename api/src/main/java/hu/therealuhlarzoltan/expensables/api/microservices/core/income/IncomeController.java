@@ -98,4 +98,6 @@ public interface IncomeController {
             @Parameter(description = "ID of the income record to be deleted")
             @PathVariable String recordId
     );
+    @DeleteMapping(value = "/api/incomes", produces = "application/json")
+    Mono<Void> deleteIncomesByAccount(@RequestParam String accountId);
 }

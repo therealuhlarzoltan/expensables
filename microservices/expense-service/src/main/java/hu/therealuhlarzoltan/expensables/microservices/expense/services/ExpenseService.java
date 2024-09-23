@@ -15,4 +15,5 @@ public interface ExpenseService {
     Mono<ExpenseRecord> createExpense(@Valid ExpenseRecordEntity expenseRecord);
     Mono<ExpenseRecord> updateExpense(@Valid ExpenseRecordEntity expenseRecord);
     Mono<Void> deleteExpense(String recordId);
+    Mono<Void> deleteExpensesByAccount(String accountId);
 }

@@ -73,7 +73,6 @@ public class MessageProcessorConfig {
                 switch (crudEvent.getEventType()) {
                     case CREATE:
                         Account account = crudEvent.getData();
-                        //accountController.createAccount(account).block();
                         accountController.createAccount(account)
                                 .doOnSuccess(createdAccount -> {
                                     String jsonString = serializeObjectToJson(createdAccount);
@@ -91,7 +90,6 @@ public class MessageProcessorConfig {
                         break;
                     case UPDATE:
                         Account accountToUpdate = crudEvent.getData();
-                        //accountController.updateAccount(accountToUpdate).block()
                         accountController.updateAccount(accountToUpdate)
                                 .doOnSuccess(updatedAccount -> {
                                     String jsonString = serializeObjectToJson(updatedAccount);

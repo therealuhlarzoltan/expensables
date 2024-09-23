@@ -81,4 +81,10 @@ public class IncomeServiceImpl implements IncomeService {
         LOG.info("Will delete income record with ID: {}", recordId);
         return repository.deleteById(recordId);
     }
+
+    @Override
+    public Mono<Void> deleteIncomesByAccount(String accountId) {
+        LOG.info("Will delete all income records for account ID: {}", accountId);
+        return repository.deleteAllByAccountId(accountId);
+    }
 }

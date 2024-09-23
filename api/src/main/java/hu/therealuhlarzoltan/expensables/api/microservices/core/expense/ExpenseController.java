@@ -99,4 +99,12 @@ public interface ExpenseController {
             @Parameter(description = "ID of the expense record to be deleted")
             @PathVariable String recordId
     );
+    @DeleteMapping(
+            value = "/api/expenses",
+            produces = "application/json"
+    )
+    Mono<Void> deleteExpensesByAccount(
+            @Parameter(description = "ID of the account for which to delete expenses")
+            @RequestParam String accountId
+    );
 }

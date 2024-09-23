@@ -14,6 +14,7 @@ import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.ExpenseGateway;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.IncomeGateway;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.TransactionGateway;
+import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.sagas.AccountSaga;
 import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ public class AccountIntegrationImpl implements AccountIntegration {
     private final IncomeGateway incomeGateway;
     private final ExpenseGateway expenseGateway;
     private final TransactionGateway transactionGateway;
+    private final AccountSaga saga;
     private final Scheduler publishEventScheduler;
     private final StreamBridge streamBridge;
     private final WebClient webClient;
@@ -61,7 +63,8 @@ public class AccountIntegrationImpl implements AccountIntegration {
             AccountGateway accountGateway,
             IncomeGateway incomeGateway,
             ExpenseGateway expenseGateway,
-            TransactionGateway transactionGateway) {
+            TransactionGateway transactionGateway,
+            AccountSaga saga) {
         this.publishEventScheduler = publishEventScheduler;
         this.webClient = webClient;
         this.mapper = mapper;
@@ -70,6 +73,7 @@ public class AccountIntegrationImpl implements AccountIntegration {
         this.incomeGateway = incomeGateway;
         this.expenseGateway = expenseGateway;
         this.transactionGateway = transactionGateway;
+        this.saga = saga;
     }
 
     @Override
@@ -176,7 +180,12 @@ public class AccountIntegrationImpl implements AccountIntegration {
     @Override
     public Mono<Void> deleteAccount(Account account) {
         LOG.info("Will call the deleteAccount API from the integration layer with accountId: {}", account.getAccountId());
-        return Mono.fromRunnable(() -> sendMessage("accounts-out-0", new CrudEvent<String, Account>(CrudEvent.Type.DELETE, account.getAccountId(), account)));
+        return Mono.fromRunnable(() -> {
+            sendMessage("accounts-out-0", new CrudEvent<String, Account>(CrudEvent.Type.DELETE, account.getAccountId(), account));
+            sendMessage("incomes-out-0", new CrudEvent<String, IncomeRecord>(CrudEvent.Type.DELETE_ALL, account.getAccountId(), IncomeRecord.builder().build()));
+            sendMessage("expenses-out-0", new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.DELETE_ALL, account.getAccountId(), ExpenseRecord.builder().build()));
+            sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.DELETE_ALL, account.getAccountId(), TransactionRecord.builder().build()));
+        });
     }
 
     private void sendMessage(String bindingName, String correlationId, Event<?, ?> event) {
