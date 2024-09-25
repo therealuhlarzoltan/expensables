@@ -17,6 +17,10 @@ spring:
     database: bank_account_db
     auto-index-creation: true
 
+  jackson:
+    deserialization:
+      use-big-decimal-for-floats: true
+
   rabbitmq:
     host: 127.0.0.1
     port: 5672

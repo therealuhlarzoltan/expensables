@@ -71,37 +71,51 @@ public class MessageProcessorConfig {
                 switch (crudEvent.getEventType()) {
                     case CREATE:
                         IncomeRecord income = crudEvent.getData();
-                        controller.createIncome(income)
-                                .doOnSuccess(createdExpense -> {
-                                    String jsonString = serializeObjectToJson(createdExpense);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to create income, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        try {
+                            controller.createIncome(income)
+                                    .doOnSuccess(createdExpense -> {
+                                        String jsonString = serializeObjectToJson(createdExpense);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to create income, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to create income, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case UPDATE:
                         IncomeRecord incomeToUpdate = crudEvent.getData();
-                        controller.updateIncome(incomeToUpdate)
-                                .doOnSuccess(updatedExpense -> {
-                                    String jsonString = serializeObjectToJson(updatedExpense);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to update income, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        try {
+                            controller.updateIncome(incomeToUpdate)
+                                    .doOnSuccess(updatedExpense -> {
+                                        String jsonString = serializeObjectToJson(updatedExpense);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to update income, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to update income, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case DELETE:
                         String incomeId = crudEvent.getKey();

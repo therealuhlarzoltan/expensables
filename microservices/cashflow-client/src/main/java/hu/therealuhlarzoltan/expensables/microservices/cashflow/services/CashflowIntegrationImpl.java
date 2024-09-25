@@ -1,11 +1,14 @@
 package hu.therealuhlarzoltan.expensables.microservices.cashflow.services;
 
+import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeRequest;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeResponse;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.expense.ExpenseRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.AccountGateway;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.ExchangeGateway;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.ExpenseGateway;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.IncomeGateway;
+import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.sagas.IncomeSaga;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +25,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     private final ExpenseGateway expenseGateway;
     private final IncomeGateway incomeGateway;
     private final ExchangeGateway exchangeGateway;
+    private final IncomeSaga incomeSaga;
 
     @Override
     public Flux<IncomeRecord> getAccountIncomes(String accountId) {
@@ -57,4 +61,19 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
         return null;
     }
 
+    @Override
+    public Mono<String> getAccountCurrency(String accountId) {
+        return accountGateway.getAccountCurrency(accountId);
+    }
+
+    @Override
+    public Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord) {
+        return incomeSaga.createIncome(incomeRecord);
+    }
+
+    @Override
+    public Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
+        Mono<ExchangeResponse> exchangeResponse = exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount());
+        return null;
+    }
 }

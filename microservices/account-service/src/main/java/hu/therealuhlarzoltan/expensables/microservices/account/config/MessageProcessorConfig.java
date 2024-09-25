@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
 import java.io.IOException;
@@ -73,37 +74,52 @@ public class MessageProcessorConfig {
                 switch (crudEvent.getEventType()) {
                     case CREATE:
                         Account account = crudEvent.getData();
-                        accountController.createAccount(account)
-                                .doOnSuccess(createdAccount -> {
-                                    String jsonString = serializeObjectToJson(createdAccount);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to create account, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        // Design flaw - Some exception inside the controller are being thrown directly instead of wrapping them in a Mono.error or Flux.error
+                        try {
+                            accountController.createAccount(account)
+                                    .doOnSuccess(createdAccount -> {
+                                        String jsonString = serializeObjectToJson(createdAccount);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to create account, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to create account, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case UPDATE:
                         Account accountToUpdate = crudEvent.getData();
-                        accountController.updateAccount(accountToUpdate)
-                                .doOnSuccess(updatedAccount -> {
-                                    String jsonString = serializeObjectToJson(updatedAccount);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to update account, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        try {
+                            accountController.updateAccount(accountToUpdate)
+                                    .doOnSuccess(updatedAccount -> {
+                                        String jsonString = serializeObjectToJson(updatedAccount);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to update account, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to update account, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case DELETE:
                         String accountId = crudEvent.getKey();
@@ -116,23 +132,62 @@ public class MessageProcessorConfig {
                 }
             } else if (event instanceof AccountEvent<?, ?>) {
                 LOG.info("Account event detected...");
-                if (!(event.getKey() instanceof String) || !(event.getData() instanceof BigDecimal)) {
-                    String errorMessage = "Incorrect Account event parameters, expected <String, BigDecimal>";
+                if (!(event.getKey() instanceof String) || (!(event.getData() instanceof BigDecimal) && !(event.getData() instanceof Double) && !(event.getData() instanceof Integer))) {
+                    String errorMessage = "Incorrect Account event parameters, expected <String, BigDecimal/Double>/Integer";
                     LOG.warn(errorMessage);
                     throw new EventProcessingException(errorMessage);
                 }
-                @SuppressWarnings(value = "unchecked") // We know that the key is a String and the data is a BigDecimal
-                AccountEvent<String, BigDecimal> accountEvent = (AccountEvent<String, BigDecimal>) event;
+                AccountEvent<String, BigDecimal> accountEvent =  new AccountEvent<String, BigDecimal>((AccountEvent.Type) event.getEventType(), (String) event.getKey(), convertToBigdecimal(event.getData()));
                 switch (accountEvent.getEventType()) {
                     case DEPOSIT:
                         UUID depositAccountId = UUID.fromString(accountEvent.getKey());
                         BigDecimal depositAmount = accountEvent.getData();
-                        accountController.deposit(depositAccountId, depositAmount).block();
+                        try {
+                            accountController.deposit(depositAccountId, depositAmount)
+                                    .doOnSuccess(updatedAccount -> {
+                                        String jsonString = serializeObjectToJson(updatedAccount);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.OK);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to deposit to account, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to deposit account, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case WITHDRAW:
                         UUID withdrawAccountId = UUID.fromString(accountEvent.getKey());
                         BigDecimal withdrawAmount = accountEvent.getData();
-                        accountController.withdraw(withdrawAccountId, withdrawAmount).block();
+                        try {
+                            accountController.withdraw(withdrawAccountId, withdrawAmount)
+                                    .doOnSuccess(updatedAccount -> {
+                                        String jsonString = serializeObjectToJson(updatedAccount);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.OK);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorContinue((throwable, obj) -> {
+                                        LOG.error("Failed to withdraw from account, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to withdraw from account, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     default:
                         String errorMessage = "Incorrect event type: " + event.getEventType() + ", expected a DEPOSIT or WITHDRAW event";
@@ -145,6 +200,15 @@ public class MessageProcessorConfig {
                 throw new EventProcessingException(errorMessage);
             }
             LOG.info("Message processing done!");
+        };
+    }
+
+    private BigDecimal convertToBigdecimal(Object data) {
+        return switch (data) {
+            case BigDecimal bigDecimal -> bigDecimal;
+            case Double v -> BigDecimal.valueOf(v);
+            case Integer i -> BigDecimal.valueOf(i);
+            case null, default -> null;
         };
     }
 

@@ -5,6 +5,7 @@ import hu.therealuhlarzoltan.expensables.api.microservices.composite.cashflow.In
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.mappers.ExpenseMapper;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.mappers.IncomeMapper;
 import lombok.RequiredArgsConstructor;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,7 @@ public class CashflowServiceImpl implements CashflowService {
     private final IncomeMapper incomeMapper;
     private final ExpenseMapper expenseMapper;
     private final CashflowIntegration integration;
-    private final ResponseListenerService responseListener;
+    private final ResponseListenerServiceImpl responseListener;
 
 
     @Override
@@ -50,8 +51,18 @@ public class CashflowServiceImpl implements CashflowService {
 
     @Override
     public Mono<IncomeRecordInfo> createIncome(IncomeRecordInfo incomeRecordInfo) {
+        incomeRecordInfo.setRecordId(new ObjectId().toHexString());
         LOG.info("Will call the integration layer to create income: {}", incomeRecordInfo);
-        return null;
+        return integration.getAccountCurrency(incomeRecordInfo.getAccountId())
+                .flatMap(targetCurrency -> {
+                    if (targetCurrency.equals(incomeRecordInfo.getCurrency())) {
+                        return integration.createIncome(incomeMapper.incomeInfoToRecord(incomeRecordInfo))
+                                .map(incomeMapper::incomeRecordToInfo);
+                    } else {
+                        return integration.createIncomeWithExchange(incomeMapper.incomeInfoToRecord(incomeRecordInfo), targetCurrency)
+                                .map(incomeMapper::incomeRecordToInfo);
+                    }
+                });
     }
 
     @Override

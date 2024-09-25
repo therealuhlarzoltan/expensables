@@ -17,4 +17,9 @@ public interface CashflowIntegration {
     Mono<IncomeRecord> getIncome(String incomeId);
 
     Mono<ExpenseRecord> getExpense(String expenseId);
+
+    Mono<String> getAccountCurrency(String accountId);
+
+    Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord);
+    Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
 }
