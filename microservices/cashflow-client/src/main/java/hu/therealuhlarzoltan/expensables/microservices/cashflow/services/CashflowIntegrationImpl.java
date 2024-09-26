@@ -1,6 +1,5 @@
 package hu.therealuhlarzoltan.expensables.microservices.cashflow.services;
 
-import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeRequest;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeResponse;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.expense.ExpenseRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
@@ -52,8 +51,9 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     }
 
     @Override
-    public Mono<Void> deleteIncome(String incomeId) {
-        return null;
+    public Mono<Void> deleteIncome(IncomeRecord incomeRecord) {
+        LOG.info("Will delegate the deleteIncome API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
+        return incomeSaga.deleteIncome(incomeRecord);
     }
 
     @Override
@@ -75,5 +75,16 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     public Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
         Mono<ExchangeResponse> exchangeResponse = exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount());
         return null;
+    }
+
+    @Override
+    public Mono<Void> deleteIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
+        LOG.info("Will delegate the deleteIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
+        return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount())
+                .flatMap(exchange -> incomeSaga.deleteIncome(incomeRecord, exchange.getAmount()))
+                .onErrorResume(e -> {
+                    LOG.error("Error during currency exchange for income id: {}, exception: {}", incomeRecord.getRecordId(), e.getMessage());
+                    return Mono.empty();
+                });
     }
 }

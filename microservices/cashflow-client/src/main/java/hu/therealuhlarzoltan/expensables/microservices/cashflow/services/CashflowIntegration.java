@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 public interface CashflowIntegration {
 
     Mono<Void> deleteExpense(String expenseId);
-    Mono<Void> deleteIncome(String incomeId);
+    Mono<Void> deleteIncome(IncomeRecord incomeRecord);
 
     Flux<IncomeRecord> getAccountIncomes(String accountId);
 
@@ -22,4 +22,6 @@ public interface CashflowIntegration {
 
     Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord);
     Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
+
+    Mono<Void> deleteIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
 }

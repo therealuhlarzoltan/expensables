@@ -2,6 +2,7 @@ package hu.therealuhlarzoltan.expensables.microservices.cashflow.services;
 
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.cashflow.ExpenseRecordInfo;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.cashflow.IncomeRecordInfo;
+import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRecord;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.mappers.ExpenseMapper;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.mappers.IncomeMapper;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +87,24 @@ public class CashflowServiceImpl implements CashflowService {
     @Override
     public Mono<Void> deleteIncome(String incomeId) {
         LOG.info("Will call the integration layer to delete income with id: {}", incomeId);
-        return integration.deleteIncome(incomeId);
+        return integration.getIncome(incomeId)
+                .onErrorResume(ex -> {
+                    LOG.error("Income not found with id: {}", incomeId);
+                    return Mono.empty();
+                })
+                .flatMap(rec -> integration.getAccountCurrency(rec.getAccountId())
+                        .onErrorResume(ex -> {
+                            LOG.error("Error while getting account currency for account id: {}, exception: {}", rec.getAccountId(), ex.getMessage());
+                            return Mono.empty();
+                        })
+                        .flatMap(targetCurrency -> {
+                            if (targetCurrency.equals(rec.getCurrency())) {
+                                return integration.deleteIncome(rec);
+                            } else {
+                                return integration.deleteIncomeWithExchange(rec, targetCurrency);
+                            }
+                        })
+                );
     }
 
     @Override

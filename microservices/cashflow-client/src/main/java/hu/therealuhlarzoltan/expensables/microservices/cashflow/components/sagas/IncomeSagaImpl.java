@@ -126,7 +126,7 @@ public class IncomeSagaImpl implements IncomeSaga {
             }).doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
                 LOG.warn("Couldn't complete income creation saga due to error: {}", ex.getMessage());
                 LOG.warn("Rolling back the income creation saga for income with id: {}", incomeRecord.getRecordId());
-                restoreChanges(state.get(), incomeRecord);
+                restoreIncomeCreation(state.get(), incomeRecord);
             }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
                     if (responseMessage.get() == null && responseStatus.get() == HttpStatus.OK) {
                         return Mono.just(incomeRecord);
@@ -147,12 +147,94 @@ public class IncomeSagaImpl implements IncomeSaga {
 
     @Override
     public Mono<Void> deleteIncome(IncomeRecord incomeRecord) {
-        return null;
+        AtomicReference<IncomeDeletionState> state = new AtomicReference<>(IncomeDeletionState.INIT);
+        String corrId = UUID.randomUUID().toString();
+        return incomeGateway.getIncome(incomeRecord.getRecordId())
+                .onErrorResume(ServiceResponseException.class, e -> {
+                    LOG.warn("Income record not found: {}", incomeRecord.getRecordId());
+                    return Mono.empty();
+                })
+                .then(Mono.fromRunnable(() -> {
+                    LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
+                    sendMessage("incomes-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, incomeRecord.getRecordId(), incomeRecord));
+                }))
+                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(incomeGateway.getIncome(incomeRecord.getRecordId())
+                        .onErrorResume(NotFoundException.class, e -> {
+                            state.set(IncomeDeletionState.INCOME_DELETED);
+                            return Mono.empty();
+                        })
+                )
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == IncomeDeletionState.INCOME_DELETED) {
+                        sendMessage("accounts-out-0", corrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, incomeRecord.getAccountId(), incomeRecord.getAmount()));
+                    }
+                }))
+                .then(responseListener.waitForResponse(corrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted income entity with id: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId());
+                        state.set(IncomeDeletionState.ACCOUNT_UPDATED);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted income entity with id: {}, error: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during income deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .onErrorResume(ex -> {
+                    LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
+                    restoreIncomeDeletion(state.get(), incomeRecord, incomeRecord.getAmount());
+                    return Mono.empty();
+                }).then().subscribeOn(publishEventScheduler);
     }
 
     @Override
     public Mono<Void> deleteIncome(IncomeRecord incomeRecord, BigDecimal amount) {
-        return null;
+        AtomicReference<IncomeDeletionState> state = new AtomicReference<>(IncomeDeletionState.INIT);
+        String corrId = UUID.randomUUID().toString();
+        return incomeGateway.getIncome(incomeRecord.getRecordId())
+                .onErrorResume(ServiceResponseException.class, e -> {
+                    LOG.warn("Income record not found: {}", incomeRecord.getRecordId());
+                    return Mono.empty();
+                })
+                .then(Mono.fromRunnable(() -> {
+                    LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
+                    sendMessage("incomes-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, incomeRecord.getRecordId(), incomeRecord));
+                }))
+                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(incomeGateway.getIncome(incomeRecord.getRecordId())
+                        .onErrorResume(NotFoundException.class, e -> {
+                            state.set(IncomeDeletionState.INCOME_DELETED);
+                            return Mono.empty();
+                        })
+                )
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == IncomeDeletionState.INCOME_DELETED) {
+                        sendMessage("accounts-out-0", corrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, incomeRecord.getAccountId(), amount));
+                    }
+                }))
+                .then(responseListener.waitForResponse(corrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted income entity with id: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId());
+                        state.set(IncomeDeletionState.ACCOUNT_UPDATED);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted income entity with id: {}, error: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during income deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .onErrorResume(ex -> {
+                    LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
+                    restoreIncomeDeletion(state.get(), incomeRecord, amount);
+                    return Mono.empty();
+                }).then().subscribeOn(publishEventScheduler);
     }
 
     private void sendMessage(String bindingName, String correlationId, Event<?, ?> event) {
@@ -217,7 +299,7 @@ public class IncomeSagaImpl implements IncomeSaga {
         return new ServiceResponseException(data.getMessage(), data.getStatus());
     }
 
-    private void restoreChanges(IncomeCreationState state, IncomeRecord record) {
+    private void restoreIncomeCreation(IncomeCreationState state, IncomeRecord record) {
         switch (state) {
             case INIT:
                 LOG.info("No rollback needed after failed income creation with income id: {}", record.getRecordId());
@@ -237,5 +319,26 @@ public class IncomeSagaImpl implements IncomeSaga {
                 return;
         }
 
+    }
+
+    private void restoreIncomeDeletion(IncomeDeletionState state, IncomeRecord record, BigDecimal amount) {
+        switch (state) {
+            case INIT:
+                LOG.info("No rollback needed after failed income deletion with income id: {}", record.getRecordId());
+                break;
+            case ACCOUNT_UPDATED:
+                LOG.info("Rolling back account update for income deletion with income id: {}", record.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, record.getAccountId(), amount));
+                LOG.info("Rolling back income deletion with income id: {}", record.getRecordId());
+                sendMessage("incomes-out-0", new CrudEvent<String, IncomeRecord>(CrudEvent.Type.CREATE, record.getRecordId(), record));
+                break;
+            case INCOME_DELETED:
+                LOG.info("Rolling back income deletion with income id: {}", record.getRecordId());
+                sendMessage("incomes-out-0", new CrudEvent<String, IncomeRecord>(CrudEvent.Type.CREATE, record.getRecordId(), record));
+                break;
+            default:
+                LOG.warn("Couldn't determine restore action for income deletion state: {} with income id: {}", state, record.getRecordId());
+                return;
+        }
     }
 }
