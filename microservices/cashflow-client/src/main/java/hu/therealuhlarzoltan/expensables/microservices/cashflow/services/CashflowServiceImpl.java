@@ -68,8 +68,18 @@ public class CashflowServiceImpl implements CashflowService {
 
     @Override
     public Mono<ExpenseRecordInfo> createExpense(ExpenseRecordInfo expenseRecordInfo) {
+        expenseRecordInfo.setRecordId(new ObjectId().toHexString());
         LOG.info("Will call the integration layer to create expense: {}", expenseRecordInfo);
-        return null;
+        return integration.getAccountCurrency(expenseRecordInfo.getAccountId())
+                .flatMap(targetCurrency -> {
+                    if (targetCurrency.equals(expenseRecordInfo.getCurrency())) {
+                        return integration.createExpense(expenseMapper.expenseInfoToRecord(expenseRecordInfo))
+                                .map(expenseMapper::expenseRecordToInfo);
+                    } else {
+                        return integration.createExpenseWithExchange(expenseMapper.expenseInfoToRecord(expenseRecordInfo), targetCurrency)
+                                .map(expenseMapper::expenseRecordToInfo);
+                    }
+                });
     }
 
     @Override
@@ -98,7 +108,24 @@ public class CashflowServiceImpl implements CashflowService {
     @Override
     public Mono<ExpenseRecordInfo> updateExpense(String expenseId, ExpenseRecordInfo expenseRecordInfo) {
         LOG.info("Will call the integration layer to update expense with id: {} and body: {}", expenseId, expenseRecordInfo);
-        return null;
+        return integration.getExpense(expenseId)
+                .doOnError(ex -> {
+                    LOG.error("Expense not found with id: {}", expenseId);
+                })
+                .flatMap(rec -> integration.getAccountCurrency(rec.getAccountId())
+                        .doOnError(ex -> {
+                            LOG.error("Error while getting account currency for account id: {}, exception: {}", rec.getAccountId(), ex.getMessage());
+                        })
+                        .flatMap(targetCurrency -> {
+                            if (targetCurrency.equals(rec.getCurrency())) {
+                                return integration.updateExpense(expenseMapper.expenseInfoToRecord(expenseRecordInfo))
+                                        .map(expenseMapper::expenseRecordToInfo);
+                            } else {
+                                return integration.updateExpenseWithExchange(expenseMapper.expenseInfoToRecord(expenseRecordInfo), targetCurrency)
+                                        .map(expenseMapper::expenseRecordToInfo);
+                            }
+                        })
+                );
     }
 
     @Override
@@ -125,6 +152,21 @@ public class CashflowServiceImpl implements CashflowService {
     @Override
     public Mono<Void> deleteExpense(String expenseId) {
         LOG.info("Will call the integration layer to delete expense with id: {}", expenseId);
-        return integration.deleteExpense(expenseId);
+        return integration.getExpense(expenseId)
+                .doOnError(ex -> {
+                    LOG.error("Expense not found with id: {}", expenseId);
+                })
+                .flatMap(rec -> integration.getAccountCurrency(rec.getAccountId())
+                        .doOnError(ex -> {
+                            LOG.error("Error while getting account currency for account id: {}, exception: {}", rec.getAccountId(), ex.getMessage());
+                        })
+                        .flatMap(targetCurrency -> {
+                            if (targetCurrency.equals(rec.getCurrency())) {
+                                return integration.deleteExpense(rec);
+                            } else {
+                                return integration.deleteExpenseWithExchange(rec, targetCurrency);
+                            }
+                        })
+                );
     }
 }

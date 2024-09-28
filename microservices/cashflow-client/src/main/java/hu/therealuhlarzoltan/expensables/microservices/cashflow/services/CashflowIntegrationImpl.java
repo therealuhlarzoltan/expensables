@@ -7,6 +7,7 @@ import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gatew
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.ExchangeGateway;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.ExpenseGateway;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.IncomeGateway;
+import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.sagas.ExpenseSaga;
 import hu.therealuhlarzoltan.expensables.microservices.cashflow.components.sagas.IncomeSaga;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -25,6 +26,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     private final IncomeGateway incomeGateway;
     private final ExchangeGateway exchangeGateway;
     private final IncomeSaga incomeSaga;
+    private final ExpenseSaga expenseSaga;
 
     @Override
     public Flux<IncomeRecord> getAccountIncomes(String accountId) {
@@ -57,8 +59,17 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     }
 
     @Override
-    public Mono<Void> deleteExpense(String expenseId) {
-        return null;
+    public Mono<Void> deleteExpense(ExpenseRecord expenseRecord) {
+        LOG.info("Will delegate the deleteExpense API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
+        return expenseSaga.deleteExpense(expenseRecord);
+    }
+
+    @Override
+    public Mono<Void> deleteExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
+        LOG.info("Will delegate the deleteExpenseWithExchange API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
+        return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount())
+                .flatMap(exchange -> expenseSaga.deleteExpense(expenseRecord, exchange.getAmount()))
+                .doOnError(throwable -> LOG.error("Error while deleting expense with exchange: {}", throwable.getMessage()));
     }
 
     @Override
@@ -99,5 +110,32 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
         return incomeGateway.getIncome(incomeRecord.getRecordId())
                 .flatMap(income -> incomeSaga.updateIncome(incomeRecord, incomeRecord.getAmount().subtract(income.getAmount())))
                 .doOnError(throwable -> LOG.error("Error while updating income: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<ExpenseRecord> updateExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
+        LOG.info("Will delegate the updateExpenseWithExchange API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
+        return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount())
+                .flatMap(exchange -> expenseSaga.updateExpense(expenseRecord, exchange.getAmount()))
+                .doOnError(throwable -> LOG.error("Error while updating expense with exchange: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<ExpenseRecord> updateExpense(ExpenseRecord expenseRecord) {
+        LOG.info("Will delegate the updateExpense API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
+        return expenseGateway.getExpense(expenseRecord.getRecordId())
+                .flatMap(expense-> expenseSaga.updateExpense(expenseRecord, expenseRecord.getAmount().subtract(expense.getAmount())))
+                .doOnError(throwable -> LOG.error("Error while updating income: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<ExpenseRecord> createExpense(ExpenseRecord expenseRecord) {
+        LOG.info("Will delegate the createExpense API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
+        return expenseSaga.createExpense(expenseRecord).doOnError(throwable -> LOG.error("Error while creating expense: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<ExpenseRecord> createExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
+        return null;
     }
 }

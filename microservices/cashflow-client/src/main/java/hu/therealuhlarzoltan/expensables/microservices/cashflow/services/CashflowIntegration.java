@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono;
 
 public interface CashflowIntegration {
 
-    Mono<Void> deleteExpense(String expenseId);
+    Mono<Void> deleteExpense(ExpenseRecord expenseRecord);
     Mono<Void> deleteIncome(IncomeRecord incomeRecord);
 
     Flux<IncomeRecord> getAccountIncomes(String accountId);
@@ -18,6 +18,8 @@ public interface CashflowIntegration {
 
     Mono<ExpenseRecord> getExpense(String expenseId);
 
+    Mono<Void> deleteExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency);
+
     Mono<String> getAccountCurrency(String accountId);
 
     Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord);
@@ -26,4 +28,12 @@ public interface CashflowIntegration {
     Mono<Void> deleteIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
     Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord);
     Mono<IncomeRecord> updateIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
+
+    Mono<ExpenseRecord> updateExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency);
+
+    Mono<ExpenseRecord> updateExpense(ExpenseRecord expenseRecord);
+
+    Mono<ExpenseRecord> createExpense(ExpenseRecord expenseRecord);
+
+    Mono<ExpenseRecord> createExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency);
 }
