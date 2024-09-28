@@ -141,18 +141,77 @@ public class IncomeSagaImpl implements IncomeSaga {
     }
 
     @Override
-    public Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord) {
-        return null;
+    public Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord, BigDecimal amount) {
+        String accountUpdateCorrId = UUID.randomUUID().toString();
+        String incomeUpdateCorrId = UUID.randomUUID().toString();
+        AtomicReference<IncomeUpdateState> state = new AtomicReference<>(IncomeUpdateState.INIT);
+        return Mono.fromRunnable(() -> {
+            LOG.info("Starting income update saga with income id: {}", incomeRecord.getRecordId());
+        }).then(
+            amount.compareTo(BigDecimal.ZERO) != 0
+                ? handleAccountUpdate(incomeRecord, amount, accountUpdateCorrId, state)
+                : Mono.empty()
+        ).then(
+            Mono.fromRunnable(() -> {
+                LOG.info("Updating income record with id: {}", incomeRecord.getRecordId());
+                sendMessage("incomes-out-0", incomeUpdateCorrId, new CrudEvent<>(CrudEvent.Type.UPDATE, incomeRecord.getRecordId(), incomeRecord));
+                })
+        ).then(
+            responseListener.waitForResponse(incomeUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                    .flatMap(response -> {
+                        if (response.getEventType() == SUCCESS) {
+                            state.set(IncomeUpdateState.INCOME_UPDATED);
+                            String jsonString = response.getData().getMessage();
+                            IncomeRecord updatedIncomeRecord = deserializeObjectFromJson(jsonString, IncomeRecord.class);
+                            return Mono.just(updatedIncomeRecord);
+                        } else if (response.getEventType() == ERROR) {
+                            LOG.error("Couldn't update income record from income saga for income id: {}", incomeRecord.getRecordId());
+                            return Mono.error(createMessageResponseError(response.getData()));
+                        } else {
+                            LOG.error("Unknown response event received inside income update saga for income id: {}", incomeRecord.getRecordId());
+                            return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                        }
+                    })
+        ).onErrorResume(ex -> {
+            LOG.info("Encountered an error during income update with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
+            restoreIncomeUpdate(state.get(), incomeRecord, amount);
+            return Mono.error(ex);
+        }).subscribeOn(publishEventScheduler);
     }
+
+    private Mono<Void> handleAccountUpdate(IncomeRecord incomeRecord, BigDecimal amount, String accountUpdateCorrId, AtomicReference<IncomeUpdateState> state) {
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            LOG.info("Deducting money from account with id: {}, due to updated income record with id {}", incomeRecord.getAccountId(), incomeRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, incomeRecord.getAccountId(), amount.abs()));
+        } else {
+            LOG.info("Depositing money to account with id: {}, due to updated income record with id {}", incomeRecord.getAccountId(), incomeRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, incomeRecord.getAccountId(), amount.abs()));
+        }
+
+        return responseListener.waitForResponse(accountUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        state.set(IncomeUpdateState.ACCOUNT_UPDATED);
+                        return Mono.<Void>empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.error("Couldn't update corresponding account balance from income saga for income id: {}", incomeRecord.getRecordId());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received inside income update saga for income id: {}", incomeRecord.getRecordId());
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                }).subscribeOn(publishEventScheduler);
+    }
+
 
     @Override
     public Mono<Void> deleteIncome(IncomeRecord incomeRecord) {
         AtomicReference<IncomeDeletionState> state = new AtomicReference<>(IncomeDeletionState.INIT);
         String corrId = UUID.randomUUID().toString();
         return incomeGateway.getIncome(incomeRecord.getRecordId())
-                .onErrorResume(ServiceResponseException.class, e -> {
+                .onErrorMap(e -> {
                     LOG.warn("Income record not found: {}", incomeRecord.getRecordId());
-                    return Mono.empty();
+                    return new NotFoundException("Income record to delete not found");
                 })
                 .then(Mono.fromRunnable(() -> {
                     LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
@@ -186,7 +245,8 @@ public class IncomeSagaImpl implements IncomeSaga {
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
-                    restoreIncomeDeletion(state.get(), incomeRecord, incomeRecord.getAmount());
+                    if (!(ex instanceof NotFoundException))
+                        restoreIncomeDeletion(state.get(), incomeRecord, incomeRecord.getAmount());
                     return Mono.empty();
                 }).then().subscribeOn(publishEventScheduler);
     }
@@ -196,9 +256,9 @@ public class IncomeSagaImpl implements IncomeSaga {
         AtomicReference<IncomeDeletionState> state = new AtomicReference<>(IncomeDeletionState.INIT);
         String corrId = UUID.randomUUID().toString();
         return incomeGateway.getIncome(incomeRecord.getRecordId())
-                .onErrorResume(ServiceResponseException.class, e -> {
+                .onErrorMap(e -> {
                     LOG.warn("Income record not found: {}", incomeRecord.getRecordId());
-                    return Mono.empty();
+                    return new NotFoundException("Income record to delete not found");
                 })
                 .then(Mono.fromRunnable(() -> {
                     LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
@@ -232,7 +292,8 @@ public class IncomeSagaImpl implements IncomeSaga {
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
-                    restoreIncomeDeletion(state.get(), incomeRecord, amount);
+                    if (!(ex instanceof NotFoundException))
+                        restoreIncomeDeletion(state.get(), incomeRecord, amount);
                     return Mono.empty();
                 }).then().subscribeOn(publishEventScheduler);
     }
@@ -252,37 +313,6 @@ public class IncomeSagaImpl implements IncomeSaga {
                 .setHeader("partitionKey", event.getKey())
                 .build();
         streamBridge.send(bindingName, message);
-    }
-
-    private Throwable handleException(Throwable ex) {
-
-        if (!(ex instanceof WebClientResponseException)) {
-            LOG.warn("Got a unexpected error: {}, will rethrow it", ex.toString());
-            return ex;
-        }
-
-        WebClientResponseException wcre = (WebClientResponseException)ex;
-
-        switch (HttpStatus.resolve(wcre.getStatusCode().value())) {
-            case NOT_FOUND:
-                return new NotFoundException(getErrorMessage(wcre));
-            case UNPROCESSABLE_ENTITY:
-                return new InvalidInputDataException(getErrorMessage(wcre));
-
-            default:
-                LOG.warn("Got an unexpected HTTP error: {}, will rethrow it", wcre.getStatusCode());
-                LOG.warn("Error body: {}", wcre.getResponseBodyAsString());
-                return ex;
-        }
-    }
-
-
-    private String getErrorMessage(WebClientResponseException ex) {
-        try {
-            return mapper.readValue(ex.getResponseBodyAsString(), HttpErrorInfo.class).getMessage();
-        } catch (IOException ioex) {
-            return ex.getMessage();
-        }
     }
 
     private <T> T deserializeObjectFromJson(String json, Class<T> clazz) {
@@ -338,6 +368,26 @@ public class IncomeSagaImpl implements IncomeSaga {
                 break;
             default:
                 LOG.warn("Couldn't determine restore action for income deletion state: {} with income id: {}", state, record.getRecordId());
+                return;
+        }
+
+    }
+
+    private void restoreIncomeUpdate(IncomeUpdateState state, IncomeRecord record, BigDecimal amount) {
+        switch (state) {
+            case INIT:
+                LOG.info("No rollback needed after failed income update with income id: {}", record.getRecordId());
+                break;
+            case ACCOUNT_UPDATED, INCOME_UPDATED:
+                LOG.info("Rolling back account update for income update with income id: {}", record.getRecordId());
+                if (amount.compareTo(BigDecimal.ZERO) < 0) {
+                    sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, record.getAccountId(), amount.abs()));
+                } else {
+                    sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, record.getAccountId(), amount.abs()));
+                }
+                break;
+            default:
+                LOG.warn("Couldn't determine restore action for income update state: {} with income id: {}", state, record.getRecordId());
                 return;
         }
     }

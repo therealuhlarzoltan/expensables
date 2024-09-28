@@ -47,6 +47,17 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
         };
     }
 
+    @Bean
+    public Consumer<Message<HttpResponseEvent>> expenseResponseProcessor() {
+        return message -> {
+            HttpResponseEvent event = message.getPayload();
+            String correlationId = (String) message.getHeaders().get("correlationId");
+            HttpResponseEvent.Type eventType = event.getEventType();
+            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
+            processEvent(correlationId, event);
+        };
+    }
+
     public Mono<HttpResponseEvent> waitForResponse(String correlationId, Duration timeout) {
         return Mono.<HttpResponseEvent>create(sink -> responseSinks.put(correlationId, sink))
                 .timeout(timeout, Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY)))

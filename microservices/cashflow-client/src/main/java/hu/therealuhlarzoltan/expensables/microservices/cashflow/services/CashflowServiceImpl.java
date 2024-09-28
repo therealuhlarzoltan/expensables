@@ -75,7 +75,24 @@ public class CashflowServiceImpl implements CashflowService {
     @Override
     public Mono<IncomeRecordInfo> updateIncome(String incomeId, IncomeRecordInfo incomeRecordInfo) {
         LOG.info("Will call the integration layer to update income with id: {} and body: {}", incomeId, incomeRecordInfo);
-        return null;
+        return integration.getIncome(incomeId)
+                .doOnError(ex -> {
+                    LOG.error("Income not found with id: {}", incomeId);
+                })
+                .flatMap(rec -> integration.getAccountCurrency(rec.getAccountId())
+                        .doOnError(ex -> {
+                            LOG.error("Error while getting account currency for account id: {}, exception: {}", rec.getAccountId(), ex.getMessage());
+                        })
+                        .flatMap(targetCurrency -> {
+                            if (targetCurrency.equals(rec.getCurrency())) {
+                                return integration.updateIncome(incomeMapper.incomeInfoToRecord(incomeRecordInfo))
+                                        .map(incomeMapper::incomeRecordToInfo);
+                            } else {
+                                return integration.updateIncomeWithExchange(incomeMapper.incomeInfoToRecord(incomeRecordInfo), targetCurrency)
+                                        .map(incomeMapper::incomeRecordToInfo);
+                            }
+                        })
+                );
     }
 
     @Override
@@ -88,14 +105,12 @@ public class CashflowServiceImpl implements CashflowService {
     public Mono<Void> deleteIncome(String incomeId) {
         LOG.info("Will call the integration layer to delete income with id: {}", incomeId);
         return integration.getIncome(incomeId)
-                .onErrorResume(ex -> {
+                .doOnError(ex -> {
                     LOG.error("Income not found with id: {}", incomeId);
-                    return Mono.empty();
                 })
                 .flatMap(rec -> integration.getAccountCurrency(rec.getAccountId())
-                        .onErrorResume(ex -> {
+                        .doOnError(ex -> {
                             LOG.error("Error while getting account currency for account id: {}, exception: {}", rec.getAccountId(), ex.getMessage());
-                            return Mono.empty();
                         })
                         .flatMap(targetCurrency -> {
                             if (targetCurrency.equals(rec.getCurrency())) {

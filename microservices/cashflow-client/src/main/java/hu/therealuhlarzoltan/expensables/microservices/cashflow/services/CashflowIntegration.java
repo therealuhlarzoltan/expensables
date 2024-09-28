@@ -24,4 +24,6 @@ public interface CashflowIntegration {
     Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
 
     Mono<Void> deleteIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
+    Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord);
+    Mono<IncomeRecord> updateIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency);
 }

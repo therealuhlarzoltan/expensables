@@ -6,10 +6,7 @@ import com.mongodb.DuplicateKeyException;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.account.Account;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.account.AccountController;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.*;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProcessingException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InsufficientFundsException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.*;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -58,7 +55,10 @@ public class MessageProcessorConfig {
                 if (!(event.getKey() instanceof String)) {
                     String errorMessage = "Incorrect CRUD event parameters, expected <String, Account>";
                     LOG.warn(errorMessage);
-                    throw new EventProcessingException(errorMessage);
+                    ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                    return;
                 }
                 Account crudEventData;
                 try {
@@ -66,7 +66,10 @@ public class MessageProcessorConfig {
                 } catch (IllegalArgumentException e) {
                     String errorMessage = "Incorrect CRUD event parameters, expected <String, Account>";
                     LOG.warn(errorMessage);
-                    throw new EventProcessingException(errorMessage);
+                    ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                    return;
                 }
                 @SuppressWarnings(value = "unchecked") // We know that the Event is a CrudEvent and the key is a String
                 CrudEvent<String, ?> eventWithKey = (CrudEvent<String, ?>) event;
@@ -83,11 +86,12 @@ public class MessageProcessorConfig {
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
                                     })
-                                    .onErrorContinue((throwable, obj) -> {
+                                    .onErrorResume(throwable -> {
                                         LOG.error("Failed to create account, exception message: {}", throwable.getMessage());
                                         ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
                                     })
                                     .subscribe();
                         } catch (Exception ex) {
@@ -107,11 +111,12 @@ public class MessageProcessorConfig {
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
                                     })
-                                    .onErrorContinue((throwable, obj) -> {
+                                    .onErrorResume((throwable) -> {
                                         LOG.error("Failed to update account, exception message: {}", throwable.getMessage());
                                         ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
                                     })
                                     .subscribe();
                         } catch (Exception ex) {
@@ -150,11 +155,12 @@ public class MessageProcessorConfig {
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
                                     })
-                                    .onErrorContinue((throwable, obj) -> {
+                                    .onErrorResume((throwable) -> {
                                         LOG.error("Failed to deposit to account, exception message: {}", throwable.getMessage());
                                         ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
                                     })
                                     .subscribe();
                         } catch (Exception ex) {
@@ -175,11 +181,12 @@ public class MessageProcessorConfig {
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
                                     })
-                                    .onErrorContinue((throwable, obj) -> {
+                                    .onErrorResume((throwable) -> {
                                         LOG.error("Failed to withdraw from account, exception message: {}", throwable.getMessage());
                                         ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
                                     })
                                     .subscribe();
                         } catch (Exception ex) {

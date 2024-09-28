@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 
 public interface IncomeSaga {
     Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord);
-    Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord);
+    Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord, BigDecimal amount);
     Mono<Void> deleteIncome(IncomeRecord incomeRecord);
     Mono<Void> deleteIncome(IncomeRecord incomeRecord, BigDecimal amount);
 

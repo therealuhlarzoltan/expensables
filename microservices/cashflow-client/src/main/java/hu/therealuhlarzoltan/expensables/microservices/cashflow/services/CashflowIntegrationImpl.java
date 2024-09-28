@@ -82,9 +82,22 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
         LOG.info("Will delegate the deleteIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
         return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount())
                 .flatMap(exchange -> incomeSaga.deleteIncome(incomeRecord, exchange.getAmount()))
-                .onErrorResume(e -> {
-                    LOG.error("Error during currency exchange for income id: {}, exception: {}", incomeRecord.getRecordId(), e.getMessage());
-                    return Mono.empty();
-                });
+                .doOnError(throwable -> LOG.error("Error while deleting income with exchange: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<IncomeRecord> updateIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
+        LOG.info("Will delegate the updateIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
+        return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount())
+                .flatMap(exchange -> incomeSaga.updateIncome(incomeRecord, exchange.getAmount()))
+                .doOnError(throwable -> LOG.error("Error while updating income with exchange: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<IncomeRecord> updateIncome(IncomeRecord incomeRecord) {
+        LOG.info("Will delegate the updateIncome API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
+        return incomeGateway.getIncome(incomeRecord.getRecordId())
+                .flatMap(income -> incomeSaga.updateIncome(incomeRecord, incomeRecord.getAmount().subtract(income.getAmount())))
+                .doOnError(throwable -> LOG.error("Error while updating income: {}", throwable.getMessage()));
     }
 }
