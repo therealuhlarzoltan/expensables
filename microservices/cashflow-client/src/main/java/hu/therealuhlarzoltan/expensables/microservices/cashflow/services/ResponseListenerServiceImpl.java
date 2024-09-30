@@ -27,9 +27,7 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
             HttpResponseEvent event = message.getPayload();
             String correlationId = (String) message.getHeaders().get("correlationId");
             HttpResponseEvent.Type eventType = event.getEventType();
-            LOG.info("Processing message created at {}...", event.getEventCreatedAt());
-            LOG.info("CorrelationId: {}", correlationId);
-            LOG.info("Event type: {}", eventType);
+            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
             processEvent(correlationId, event);
         };
     }
@@ -40,9 +38,7 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
             HttpResponseEvent event = message.getPayload();
             String correlationId = (String) message.getHeaders().get("correlationId");
             HttpResponseEvent.Type eventType = event.getEventType();
-            LOG.info("Processing message created at {}...", event.getEventCreatedAt());
-            LOG.info("CorrelationId: {}", correlationId);
-            LOG.info("Event type: {}", eventType);
+            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
             processEvent(correlationId, event);
         };
     }

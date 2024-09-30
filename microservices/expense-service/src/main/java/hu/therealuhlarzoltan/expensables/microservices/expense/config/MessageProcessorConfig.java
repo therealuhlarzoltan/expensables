@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.Message;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.messaging.support.MessageBuilder;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -54,7 +55,10 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
             if (!(event.getKey() instanceof String)) {
                 String errorMessage = "Incorrect CRUD event parameters, expected <String, ExpenseRecord>";
                 LOG.warn(errorMessage);
-                throw new EventProcessingException(errorMessage);
+                ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                return;
             }
             ExpenseRecord crudEventData;
             try {
@@ -62,7 +66,10 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
             } catch (IllegalArgumentException e) {
                 String errorMessage = "Incorrect CRUD event parameters, expected <String, ExpenseRecord>";
                 LOG.warn(errorMessage);
-                throw new EventProcessingException(errorMessage);
+                ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                return;
             }
             @SuppressWarnings(value = "unchecked") // We know that the Event is a CrudEvent and the key is a String
             CrudEvent<String, ?> eventWithKey = (CrudEvent<String, ?>) event;
@@ -70,37 +77,53 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
             switch (crudEvent.getEventType()) {
                 case CREATE:
                     ExpenseRecord expense = crudEvent.getData();
-                    controller.createExpense(expense)
-                            .doOnSuccess(createdExpense -> {
-                                String jsonString = serializeObjectToJson(createdExpense);
-                                ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
-                                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
-                            })
-                            .doOnError(throwable -> {
-                                LOG.error("Failed to create expense, exception message: {}", throwable.getMessage());
-                                ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                    try {
+                        controller.createExpense(expense)
+                                .doOnSuccess(createdExpense -> {
+                                    String jsonString = serializeObjectToJson(createdExpense);
+                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
+                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                    sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                                })
+                                .onErrorResume(throwable -> {
+                                    LOG.error("Failed to create expense, exception message: {}", throwable.getMessage());
+                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                    sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                                    return Mono.empty();
+                                })
+                                .subscribe();
+                    } catch (Exception ex) {
+                        LOG.error("Failed to create expense, exception message: {}", ex.getMessage());
+                        ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                        sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                    }
+                        break;
+                        case UPDATE:
+                            ExpenseRecord expenseToUpdate = crudEvent.getData();
+                            try {
+                                controller.updateExpense(expenseToUpdate)
+                                        .doOnSuccess(updatedExpense -> {
+                                            String jsonString = serializeObjectToJson(updatedExpense);
+                                            ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
+                                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                            sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                                        })
+                                        .onErrorResume(throwable -> {
+                                            LOG.error("Failed to update expense, exception message: {}", throwable.getMessage());
+                                            ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                            sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                                            return Mono.empty();
+                                        })
+                                        .subscribe();
+                            } catch (Exception ex) {
+                                LOG.error("Failed to update expense, exception message: {}", ex.getMessage());
+                                ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
                                 HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                 sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
-                            })
-                            .subscribe();
-                    break;
-                case UPDATE:
-                  ExpenseRecord expenseToUpdate = crudEvent.getData();
-                    controller.updateExpense(expenseToUpdate)
-                            .doOnSuccess(updatedExpense -> {
-                                String jsonString = serializeObjectToJson(updatedExpense);
-                                ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
-                                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
-                            })
-                            .doOnError(throwable -> {
-                                LOG.error("Failed to update expense, exception message: {}", throwable.getMessage());
-                                ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
-                            })
-                            .subscribe();
+                            }
                     break;
                 case DELETE:
                     String expenseId = crudEvent.getKey();
@@ -113,12 +136,18 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
                 default:
                     String errorMessage = "Incorrect event type: " + event.getEventType() + ", expected a CREATE, UPDATE, DELETE or DELETE_ALL event";
                     LOG.warn(errorMessage);
-                    throw new EventProcessingException(errorMessage);
+                    ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                    sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+                    return;
             }
         } else {
             String errorMessage = "Incorrect event type: " + event.getClass().getSimpleName() + ", expected a CrudEvent";
             LOG.warn(errorMessage);
-            throw new EventProcessingException(errorMessage);
+            ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+            sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
+            return;
         }
         LOG.info("Message processing done!");
     };

@@ -133,14 +133,20 @@ public class MessageProcessorConfig {
                     default:
                         String errorMessage = "Incorrect event type: " + event.getEventType() + ", expected a CREATE, UPDATE or DELETE event";
                         LOG.warn(errorMessage);
-                        throw new EventProcessingException(errorMessage);
+                        ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        return;
                 }
             } else if (event instanceof AccountEvent<?, ?>) {
                 LOG.info("Account event detected...");
                 if (!(event.getKey() instanceof String) || (!(event.getData() instanceof BigDecimal) && !(event.getData() instanceof Double) && !(event.getData() instanceof Integer))) {
                     String errorMessage = "Incorrect Account event parameters, expected <String, BigDecimal/Double>/Integer";
                     LOG.warn(errorMessage);
-                    throw new EventProcessingException(errorMessage);
+                    ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                    sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                    return;
                 }
                 AccountEvent<String, BigDecimal> accountEvent =  new AccountEvent<String, BigDecimal>((AccountEvent.Type) event.getEventType(), (String) event.getKey(), convertToBigdecimal(event.getData()));
                 switch (accountEvent.getEventType()) {
@@ -199,12 +205,18 @@ public class MessageProcessorConfig {
                     default:
                         String errorMessage = "Incorrect event type: " + event.getEventType() + ", expected a DEPOSIT or WITHDRAW event";
                         LOG.warn(errorMessage);
-                        throw new EventProcessingException(errorMessage);
+                        ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                        sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                        return;
                 }
             } else {
                 String errorMessage = "Incorrect event type: " + event.getClass().getSimpleName() + ", expected a CrudEvent or AccountEvent";
                 LOG.warn(errorMessage);
-                throw new EventProcessingException(errorMessage);
+                ResponsePayload httpInfo = new ResponsePayload(errorMessage, HttpStatus.BAD_REQUEST);
+                HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                sendResponseMessage("accountResponses-out-0", correlationId, responseEvent);
+                return;
             }
             LOG.info("Message processing done!");
         };

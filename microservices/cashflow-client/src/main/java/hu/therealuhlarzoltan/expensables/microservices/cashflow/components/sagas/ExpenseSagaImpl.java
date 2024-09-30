@@ -85,7 +85,7 @@ public class ExpenseSagaImpl implements ExpenseSaga {
         String creatExpenseCorrId = UUID.randomUUID().toString();
         String updateAccountCorrId = UUID.randomUUID().toString();
         AtomicReference<String> responseMessage = new AtomicReference<>();
-        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.OK);
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.CREATED);
         return Mono.fromRunnable(() -> {
                     LOG.info("Starting the expense creation saga for expense: {}", expenseRecord);
                     sendMessage("expenses-out-0", creatExpenseCorrId, new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.CREATE, expenseRecord.getRecordId(), expenseRecord));
@@ -94,6 +94,7 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                     if (response.getEventType() == SUCCESS) {
                         LOG.info("Expense created successfully with id: {}", expenseRecord.getRecordId());
                         state.set(ExpenseCreationState.EXPENSE_CREATED);
+                        responseMessage.set(response.getData().getMessage());
                         return Mono.empty();
                     }
                     else if (response.getEventType() == ERROR) {
@@ -105,7 +106,11 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                         LOG.error("Unknown response event received during expense creation");
                         return Mono.error(new EventProcessingException("Could not process unknown response"));
                     }
-                }).then(Mono.fromRunnable(() -> {
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(ExpenseCreationState.EXPENSE_CREATED);
+                })
+                .then(Mono.fromRunnable(() -> {
                     if (state.get() == ExpenseCreationState.EXPENSE_CREATED) {
                         sendMessage("accounts-out-0", updateAccountCorrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, expenseRecord.getAccountId(), expenseRecord.getAmount()));
                     }
@@ -128,10 +133,15 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                 }).doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
                     LOG.warn("Couldn't complete expense creation saga due to error: {}", ex.getMessage());
                     LOG.warn("Rolling back the expense creation saga for expense with id: {}", expenseRecord.getRecordId());
+                    if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        state.set(ExpenseCreationState.ACCOUNT_UPDATED);
+                    }
                     restoreExpenseCreation(state.get(), expenseRecord);
                 }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
-                    if (responseMessage.get() == null && responseStatus.get() == HttpStatus.OK) {
-                        return Mono.just(expenseRecord);
+                    if (responseStatus.get() == HttpStatus.CREATED) {
+                        String jsonString = responseMessage.get();
+                        ExpenseRecord createdExpense = deserializeObjectFromJson(jsonString, ExpenseRecord.class);
+                        return Mono.just(createdExpense);
                     } else {
                         return Mono.error(mapException(responseMessage.get(), responseStatus.get()));
                     }
@@ -174,6 +184,9 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                                 return Mono.error(new EventProcessingException("Could not process unknown response event"));
                             }
                         })
+                        .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                            state.set(ExpenseUpdateState.EXPENSE_UPDATED);
+                        })
         ).onErrorResume(ex -> {
             LOG.info("Encountered an error during expense update with id: {}, exception: {}", expenseRecord.getRecordId(), ex.getMessage());
             restoreExpenseUpdate(state.get(), expenseRecord, amount);
@@ -202,7 +215,11 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                         LOG.error("Unknown response event received inside expense update saga for expense id: {}", expenseRecord.getRecordId());
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
-                }).subscribeOn(publishEventScheduler);
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) ->  {
+                    state.set(ExpenseUpdateState.ACCOUNT_UPDATED);
+                })
+                .subscribeOn(publishEventScheduler);
     }
 
 
@@ -244,6 +261,9 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                         LOG.error("Unknown response event received during expense deletion");
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(ExpenseDeletionState.ACCOUNT_UPDATED);
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during expense deletion with id: {}, exception: {}", expenseRecord.getRecordId(), ex.getMessage());
@@ -291,6 +311,9 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                         LOG.error("Unknown response event received during expenses deletion");
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(ExpenseDeletionState.ACCOUNT_UPDATED);
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during expense deletion with id: {}, exception: {}", expenseRecord.getRecordId(), ex.getMessage());

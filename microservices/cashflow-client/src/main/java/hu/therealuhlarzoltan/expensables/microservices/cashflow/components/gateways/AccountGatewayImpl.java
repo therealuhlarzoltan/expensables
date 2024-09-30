@@ -48,9 +48,9 @@ public class AccountGatewayImpl implements AccountGateway {
         return getForSingleReactive(url, Account.class);
     }
 
-    @CircuitBreaker(name = "accountService", fallbackMethod = "handleFallback")
+    @CircuitBreaker(name = "accountService", fallbackMethod = "handleCurrencyFallback")
     @Retry(name = "accountService")
-    @TimeLimiter(name = "accountService", fallbackMethod = "handleTimeoutFallback")
+    @TimeLimiter(name = "accountService", fallbackMethod = "handleCurrencyTimeoutFallback")
     @Override
     public Mono<String> getAccountCurrency(String accountId) {
         URI url = UriComponentsBuilder
@@ -78,6 +78,10 @@ public class AccountGatewayImpl implements AccountGateway {
         return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
     }
 
+    public Mono<String> handleCurrencyTimeoutFallback(String accountId, TimeoutException ex) {
+        return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+    }
+
     // Handling timeouts with default account
     public Mono<Account> handleTimeoutFallbackWithDefault(String accountId, TimeoutException ex) {
         return Mono.fromCallable(() -> buildUnknownAccount(accountId));
@@ -85,6 +89,17 @@ public class AccountGatewayImpl implements AccountGateway {
 
     // Handling exceptions
     public Mono<Account> handleFallback(String accountId, Throwable ex) {
+        // Only handling 5xx server errors here
+        if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
+            return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+        } else if (ex instanceof CallNotPermittedException) {
+            return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+        }
+        // "Re-throwing" the exception if it's not a 5xx error
+        return Mono.error(ex);
+    }
+
+    public Mono<String> handleCurrencyFallback(String accountId, Throwable ex) {
         // Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
             return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));

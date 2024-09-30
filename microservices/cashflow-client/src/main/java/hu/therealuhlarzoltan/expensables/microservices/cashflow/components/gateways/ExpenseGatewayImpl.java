@@ -32,7 +32,7 @@ public class ExpenseGatewayImpl implements ExpenseGateway {
     @Override
     public Mono<ExpenseRecord> getExpense(String id) {
         URI url = UriComponentsBuilder
-                .fromUriString(EXPENSE_SERVICE_URL + "/api/expenses/{recordId}")
+                .fromUriString(EXPENSE_SERVICE_URL + "/api/expenses/get/{recordId}")
                 .build(id);
         return getForSingleReactive(url, ExpenseRecord.class);
     }

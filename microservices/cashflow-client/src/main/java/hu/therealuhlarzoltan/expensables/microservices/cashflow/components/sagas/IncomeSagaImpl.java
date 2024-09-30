@@ -83,7 +83,7 @@ public class IncomeSagaImpl implements IncomeSaga {
         String creatIncomeCorrId = UUID.randomUUID().toString();
         String updateAccountCorrId = UUID.randomUUID().toString();
         AtomicReference<String> responseMessage = new AtomicReference<>();
-        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.OK);
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.CREATED);
         return Mono.fromRunnable(() -> {
             LOG.info("Starting the income creation saga for income: {}", incomeRecord);
             sendMessage("incomes-out-0", creatIncomeCorrId, new CrudEvent<String, IncomeRecord>(CrudEvent.Type.CREATE, incomeRecord.getRecordId(), incomeRecord));
@@ -92,6 +92,7 @@ public class IncomeSagaImpl implements IncomeSaga {
                     if (response.getEventType() == SUCCESS) {
                         LOG.info("Income created successfully with id: {}", incomeRecord.getRecordId());
                         state.set(IncomeCreationState.INCOME_CREATED);
+                        responseMessage.set(response.getData().getMessage());
                         return Mono.empty();
                     }
                     else if (response.getEventType() == ERROR) {
@@ -103,7 +104,11 @@ public class IncomeSagaImpl implements IncomeSaga {
                         LOG.error("Unknown response event received during income creation");
                        return Mono.error(new EventProcessingException("Could not process unknown response"));
                     }
-                }).then(Mono.fromRunnable(() -> {
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(IncomeCreationState.INCOME_CREATED);
+                })
+                .then(Mono.fromRunnable(() -> {
                     if (state.get() == IncomeCreationState.INCOME_CREATED) {
                         sendMessage("accounts-out-0", updateAccountCorrId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, incomeRecord.getAccountId(), incomeRecord.getAmount()));
                 }
@@ -126,10 +131,15 @@ public class IncomeSagaImpl implements IncomeSaga {
             }).doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
                 LOG.warn("Couldn't complete income creation saga due to error: {}", ex.getMessage());
                 LOG.warn("Rolling back the income creation saga for income with id: {}", incomeRecord.getRecordId());
+                if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                    state.set(IncomeCreationState.ACCOUNT_UPDATED);
+                }
                 restoreIncomeCreation(state.get(), incomeRecord);
             }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
-                    if (responseMessage.get() == null && responseStatus.get() == HttpStatus.OK) {
-                        return Mono.just(incomeRecord);
+                    if (responseStatus.get() == HttpStatus.CREATED) {
+                        String jsonString = responseMessage.get();
+                        IncomeRecord createdIncome = deserializeObjectFromJson(jsonString, IncomeRecord.class);
+                        return Mono.just(createdIncome);
                     } else {
                         return Mono.error(mapException(responseMessage.get(), responseStatus.get()));
                     }
@@ -172,6 +182,9 @@ public class IncomeSagaImpl implements IncomeSaga {
                             return Mono.error(new EventProcessingException("Could not process unknown response event"));
                         }
                     })
+                    .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                        state.set(IncomeUpdateState.INCOME_UPDATED);
+                    })
         ).onErrorResume(ex -> {
             LOG.info("Encountered an error during income update with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
             restoreIncomeUpdate(state.get(), incomeRecord, amount);
@@ -200,7 +213,11 @@ public class IncomeSagaImpl implements IncomeSaga {
                         LOG.error("Unknown response event received inside income update saga for income id: {}", incomeRecord.getRecordId());
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
-                }).subscribeOn(publishEventScheduler);
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(IncomeUpdateState.ACCOUNT_UPDATED);
+                })
+                .subscribeOn(publishEventScheduler);
     }
 
 
@@ -245,6 +262,9 @@ public class IncomeSagaImpl implements IncomeSaga {
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
+                    if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        state.set(IncomeDeletionState.ACCOUNT_UPDATED);
+                    }
                     if (!(ex instanceof NotFoundException))
                         restoreIncomeDeletion(state.get(), incomeRecord, incomeRecord.getAmount());
                     return Mono.empty();
@@ -292,6 +312,9 @@ public class IncomeSagaImpl implements IncomeSaga {
                 })
                 .onErrorResume(ex -> {
                     LOG.warn("Encountered an error during income deletion with id: {}, exception: {}", incomeRecord.getRecordId(), ex.getMessage());
+                    if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        state.set(IncomeDeletionState.ACCOUNT_UPDATED);
+                    }
                     if (!(ex instanceof NotFoundException))
                         restoreIncomeDeletion(state.get(), incomeRecord, amount);
                     return Mono.empty();
