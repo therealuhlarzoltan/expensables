@@ -1,0 +1,88 @@
+server:
+  port: 8443
+  error.include-message: always
+
+app:
+  eureka-server: localhost
+  eureka-username: eureka_client
+  eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+  account-service-url: http://account-service
+  account-client-url: http://account-client
+  expense-service-url: http://expense-service
+  income-service-url: http://income-service
+  cashflow-client-url: http://cashflow-client
+  transaction-service-url: http://transaction-service
+  transaction-client-url: http://transaction-client
+  exchange-service-url: http://exchange-service
+  health-check-path: /actuator/health
+
+spring:
+  application:
+    name: api-gateway
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server}:8761/eureka/"
+    initialInstanceInfoReplicationIntervalSeconds: 5
+    registryFetchIntervalSeconds: 5
+  instance:
+    leaseRenewalIntervalInSeconds: 5
+    leaseExpirationDurationInSeconds: 5
+
+spring.cloud.gateway.routes:
+
+  - id: account-client
+    uri: lb://account-client
+    predicates:
+      - Path=/account-client/**
+    filters:
+      - RewritePath=/account-client/(?<segment>.*), /${segment}
+
+  - id: account-client-swagger-ui
+    uri: lb://account-client
+    predicates:
+      - Path=/openapi/**
+
+  - id: eureka-api
+    uri: http://${app.eureka-server}:8761
+    predicates:
+      - Path=/eureka/api/{segment}
+    filters:
+      - SetPath=/eureka/{segment}
+
+  - id: eureka-web
+    uri: http://${app.eureka-server}:8761
+    predicates:
+      - Path=/eureka/web
+    filters:
+      - SetPath=/
+
+  - id: eureka-default
+    uri: http://${app.eureka-server}:8761
+    predicates:
+      - Path=/eureka/**
+
+management.endpoint.health.show-details: "ALWAYS"
+management.endpoints.web.exposure.include: "*"
+management.endpoint.gateway.enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway.route.RouteDefinitionRouteLocator: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.server.adapter.HttpWebHandlerAdapter: TRACE
+
+---
+spring.config.activate.on-profile: docker
+
+
+app:
+  eureka-server-1: eureka-server-1
+  eureka-server-2: eureka-server-2
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-1}:8761/eureka/, http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-2}:8761/eureka/

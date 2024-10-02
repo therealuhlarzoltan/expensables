@@ -1,0 +1,151 @@
+server:
+  port: 8002
+  error.include-message: always
+
+app:
+  eureka-server: localhost
+  eureka-username: eureka_client
+  eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+  account-service-url: http://account-service
+  transaction-service-url: http://transaction-service
+  exchange-service-url: http://exchange-service
+  health-check-path: /actuator/health
+
+spring:
+  application:
+    name: transaction-client
+
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+
+  aop:
+    proxy-target-class: true
+    auto: true
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: "http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server}:8761/eureka/"
+    initialInstanceInfoReplicationIntervalSeconds: 5
+    registryFetchIntervalSeconds: 5
+  instance:
+    leaseRenewalIntervalInSeconds: 5
+    leaseExpirationDurationInSeconds: 5
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      exchangeService:
+        allowHealthIndicatorToFail: false
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10000
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+      transactionService:
+        allowHealthIndicatorToFail: false
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10000
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+      accountService:
+        allowHealthIndicatorToFail: false
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10000
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+
+  timelimiter:
+    instances:
+      exchangeService:
+        timeoutDuration: 6s # External API call
+      transactionService:
+        timeoutDuration: 5s
+      accountService:
+        timeoutDuration: 5s
+
+  retry:
+    instances:
+      accountService:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+      transactionService:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+      exchangeService:
+        maxAttempts: 5 # External API call
+        waitDuration: 500 # External API call
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+
+springdoc:
+  swagger-ui:
+    path: /openapi/swagger-ui.html
+  api-docs:
+    path: /openapi/api-docs
+  paths-to-match: /**
+  packages-to-scan:
+    - hu.therealuhlarzoltan.expensables.microservices.transactionclient
+    - hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction
+
+management.endpoint.health.show-details: "ALWAYS"
+management.endpoints.web.exposure.include: "*"
+management.health.circuitbreakers.enabled: true
+
+
+logging:
+  level:
+    root: INFO
+    hu.therealuhlarzoltan: INFO
+    org.springdoc: INFO
+    io.github.resilience4j.circuitbreaker: TRACE
+    io.github.resilience4j.timelimiter: TRACE
+
+---
+spring.config.activate.on-profile: docker
+
+app:
+  eureka-server-1: eureka-server-1
+  eureka-server-2: eureka-server-2
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-1}:8761/eureka/, http://${app.eureka-username}:${app.eureka-password}@${app.eureka-server-2}:8761/eureka/
+
