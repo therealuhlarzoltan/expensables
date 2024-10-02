@@ -1,5 +1,6 @@
 package hu.therealuhlarzoltan.expensables.api.microservices.core.exchange;
 
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -9,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
 
 @Data
 @NoArgsConstructor
@@ -24,4 +27,5 @@ public class ExchangeRequest {
     @NotNull(message = "Amount is required")
     @Min(value = 0, message = "Amount must be greater than 0")
     private BigDecimal amount;
+    private ZonedDateTime exchangeDate;
 }

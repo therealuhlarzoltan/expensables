@@ -148,6 +148,75 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                 }));
     }
 
+    @Override
+    public Mono<ExpenseRecord> createExpense(ExpenseRecord expenseRecord, BigDecimal amount) {
+        AtomicReference<ExpenseCreationState> state = new AtomicReference<>(ExpenseCreationState.INIT);
+        String creatExpenseCorrId = UUID.randomUUID().toString();
+        String updateAccountCorrId = UUID.randomUUID().toString();
+        AtomicReference<String> responseMessage = new AtomicReference<>();
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.CREATED);
+        return Mono.fromRunnable(() -> {
+                    LOG.info("Starting the expense creation saga for expense: {}", expenseRecord);
+                    sendMessage("expenses-out-0", creatExpenseCorrId, new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.CREATE, expenseRecord.getRecordId(), expenseRecord));
+                }).then(responseListener.waitForResponse(creatExpenseCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Expense created successfully with id: {}", expenseRecord.getRecordId());
+                        state.set(ExpenseCreationState.EXPENSE_CREATED);
+                        responseMessage.set(response.getData().getMessage());
+                        return Mono.empty();
+                    }
+                    else if (response.getEventType() == ERROR) {
+                        LOG.warn("Expense creation failed with error: {}", response.getData().getMessage());
+                        responseMessage.set(response.getData().getMessage());
+                        responseStatus.set(response.getData().getStatus());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during expense creation");
+                        return Mono.error(new EventProcessingException("Could not process unknown response"));
+                    }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(ExpenseCreationState.EXPENSE_CREATED);
+                })
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == ExpenseCreationState.EXPENSE_CREATED) {
+                        sendMessage("accounts-out-0", updateAccountCorrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, expenseRecord.getAccountId(), amount));
+                    }
+                })).then(responseListener.waitForResponse(updateAccountCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of new expense entity with id: {}", expenseRecord.getAccountId(), expenseRecord.getRecordId());
+                        state.set(ExpenseCreationState.ACCOUNT_UPDATED);
+                        return Mono.empty();
+                    }
+                    else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for new expense entity with id: {}, error: {}", expenseRecord.getAccountId(), expenseRecord.getRecordId(), response.getData().getMessage());
+                        responseMessage.set(response.getData().getMessage());
+                        responseStatus.set(response.getData().getStatus());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during expense creation");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                }).doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
+                    LOG.warn("Couldn't complete expense creation saga due to error: {}", ex.getMessage());
+                    LOG.warn("Rolling back the expense creation saga for expense with id: {}", expenseRecord.getRecordId());
+                    if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        state.set(ExpenseCreationState.ACCOUNT_UPDATED);
+                    }
+                    restoreExpenseCreation(state.get(), expenseRecord, amount);
+                }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
+                    if (responseStatus.get() == HttpStatus.CREATED) {
+                        String jsonString = responseMessage.get();
+                        ExpenseRecord createdExpense = deserializeObjectFromJson(jsonString, ExpenseRecord.class);
+                        return Mono.just(createdExpense);
+                    } else {
+                        return Mono.error(mapException(responseMessage.get(), responseStatus.get()));
+                    }
+                }));
+    }
+
     private Throwable mapException(String message, HttpStatus status) {
         return new ServiceResponseException(message, status);
     }
@@ -362,6 +431,28 @@ public class ExpenseSagaImpl implements ExpenseSaga {
             case ACCOUNT_UPDATED:
                 LOG.info("Rolling back account update for expense creation with expense id: {}", record.getRecordId());
                 sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, record.getAccountId(), record.getAmount()));
+                LOG.info("Rolling back expense creation with expense id: {}", record.getRecordId());
+                sendMessage("expenses-out-0", new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.DELETE, record.getRecordId(), record));
+                break;
+            case EXPENSE_CREATED:
+                LOG.info("Rolling back expense creation with expense id: {}", record.getRecordId());
+                sendMessage("expenses-out-0", new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.DELETE, record.getRecordId(), record));
+                break;
+            default:
+                LOG.warn("Couldn't determine restore action for expense creation state: {} with expense id: {}", state, record.getRecordId());
+                return;
+        }
+
+    }
+
+    private void restoreExpenseCreation(ExpenseCreationState state, ExpenseRecord record, BigDecimal amount) {
+        switch (state) {
+            case INIT:
+                LOG.info("No rollback needed after failed expense creation with expense id: {}", record.getRecordId());
+                break;
+            case ACCOUNT_UPDATED:
+                LOG.info("Rolling back account update for expense creation with expense id: {}", record.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, record.getAccountId(), amount));
                 LOG.info("Rolling back expense creation with expense id: {}", record.getRecordId());
                 sendMessage("expenses-out-0", new CrudEvent<String, ExpenseRecord>(CrudEvent.Type.DELETE, record.getRecordId(), record));
                 break;

@@ -3,6 +3,8 @@ package hu.therealuhlarzoltan.expensables.api.microservices.core.exchange;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
 
 @Data
 @NoArgsConstructor
@@ -14,5 +16,5 @@ public class ExchangeResponse {
     private BigDecimal exchangeRate;
     private BigDecimal amount;
     private BigDecimal result;
-
+    private ZonedDateTime exchangeDate;
 }

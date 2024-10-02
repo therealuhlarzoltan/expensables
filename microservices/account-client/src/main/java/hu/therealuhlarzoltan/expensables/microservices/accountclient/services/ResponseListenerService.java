@@ -21,7 +21,8 @@ import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
-public class ResponseListenerService {
+public class
+ResponseListenerService {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseListenerService.class);
     private final Map<String, MonoSink<HttpResponseEvent>> responseSinks = new ConcurrentHashMap<>();
 

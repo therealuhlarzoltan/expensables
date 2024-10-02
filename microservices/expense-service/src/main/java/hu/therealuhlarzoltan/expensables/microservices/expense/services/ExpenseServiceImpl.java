@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Service
 @Validated
@@ -57,7 +58,7 @@ public class ExpenseServiceImpl  implements ExpenseService {
         if (!categoryValidator.isValid(ExpenseCategory.valueOf(expenseRecord.getCategory()), expenseRecord.getSubCategory()))
             return Mono.error(new InvalidInputDataException("Expense category and subcategory must be the same"));
         expenseRecord.setVersion(null); //handled by mongo
-        expenseRecord.setTimestamp(LocalDateTime.now());
+        expenseRecord.setTimestamp(ZonedDateTime.now());
         return expenseRepository.save(expenseRecord)
                 .onErrorMap(DuplicateKeyException.class,
                         e -> new InvalidInputDataException("Record with id: " + expenseRecord.getId() + " already exists"))

@@ -1,13 +1,8 @@
 package hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeRequest;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.exchange.ExchangeResponse;
-import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
-import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
-import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -18,18 +13,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.ZonedDateTime;
 import java.util.concurrent.TimeoutException;
 
-import static java.util.logging.Level.FINE;
 import static hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.WebClientRequests.*;
 
 @Component
@@ -51,6 +43,23 @@ public class ExchangeGatewayImpl implements ExchangeGateway {
                 .fromCurrency(fromCurrency)
                 .toCurrency(toCurrency)
                 .amount(amount)
+                .build();
+        return postForSingleReactive(url, requestBody, ExchangeResponse.class);
+    }
+
+    @Retry(name = "exchangeService")
+    @TimeLimiter(name = "exchangeService", fallbackMethod = "handleTimeoutFallback")
+    @CircuitBreaker(name = "exchangeService", fallbackMethod = "handleFallback")
+    @Override
+    public Mono<ExchangeResponse> makeExchange(String fromCurrency, String toCurrency, BigDecimal amount, ZonedDateTime exchangeDate) {
+        URI url = UriComponentsBuilder
+                .fromUriString(EXCHANGE_SERVICE_URL + "/api/exchange")
+                .build().toUri();
+        ExchangeRequest requestBody = ExchangeRequest.builder()
+                .fromCurrency(fromCurrency)
+                .toCurrency(toCurrency)
+                .amount(amount)
+                .exchangeDate(exchangeDate)
                 .build();
         return postForSingleReactive(url, requestBody, ExchangeResponse.class);
     }

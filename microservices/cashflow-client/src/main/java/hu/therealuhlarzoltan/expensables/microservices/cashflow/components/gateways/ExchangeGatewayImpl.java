@@ -19,6 +19,8 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.net.URL;
+import java.time.ZonedDateTime;
 import java.util.concurrent.TimeoutException;
 
 import static hu.therealuhlarzoltan.expensables.microservices.cashflow.components.gateways.WebClientRequests.*;
@@ -42,6 +44,23 @@ public class ExchangeGatewayImpl implements ExchangeGateway {
                 .fromCurrency(fromCurrency)
                 .toCurrency(toCurrency)
                 .amount(amount)
+                .build();
+        return postForSingleReactive(url, requestBody, ExchangeResponse.class);
+    }
+
+    @Retry(name = "exchangeService")
+    @TimeLimiter(name = "exchangeService", fallbackMethod = "handleTimeoutFallback")
+    @CircuitBreaker(name = "exchangeService", fallbackMethod = "handleFallback")
+    @Override
+    public Mono<ExchangeResponse> makeExchange(String fromCurrency, String toCurrency, BigDecimal amount, ZonedDateTime exchangeDate) {
+        URI url = UriComponentsBuilder
+                .fromUriString(EXCHANGE_SERVICE_URL + "/api/exchange")
+                .build().toUri();
+        ExchangeRequest requestBody = ExchangeRequest.builder()
+                .fromCurrency(fromCurrency)
+                .toCurrency(toCurrency)
+                .amount(amount)
+                .exchangeDate(exchangeDate)
                 .build();
         return postForSingleReactive(url, requestBody, ExchangeResponse.class);
     }

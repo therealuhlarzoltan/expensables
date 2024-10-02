@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Data
 @NoArgsConstructor
@@ -20,6 +21,6 @@ public class ExpenseRecordInfo {
     private String expenseSubCategory;
     private BigDecimal amount;
     private String currency;
-    private LocalDateTime expenseDate;
+    private ZonedDateTime expenseDate;
     private Integer version;
 }

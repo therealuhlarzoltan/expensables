@@ -146,6 +146,75 @@ public class IncomeSagaImpl implements IncomeSaga {
                 }));
     }
 
+    @Override
+    public Mono<IncomeRecord> createIncome(IncomeRecord incomeRecord, BigDecimal amount) {
+        AtomicReference<IncomeCreationState> state = new AtomicReference<>(IncomeCreationState.INIT);
+        String creatIncomeCorrId = UUID.randomUUID().toString();
+        String updateAccountCorrId = UUID.randomUUID().toString();
+        AtomicReference<String> responseMessage = new AtomicReference<>();
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.CREATED);
+        return Mono.fromRunnable(() -> {
+                    LOG.info("Starting the income creation saga for income: {}", incomeRecord);
+                    sendMessage("incomes-out-0", creatIncomeCorrId, new CrudEvent<String, IncomeRecord>(CrudEvent.Type.CREATE, incomeRecord.getRecordId(), incomeRecord));
+                }).then(responseListener.waitForResponse(creatIncomeCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Income created successfully with id: {}", incomeRecord.getRecordId());
+                        state.set(IncomeCreationState.INCOME_CREATED);
+                        responseMessage.set(response.getData().getMessage());
+                        return Mono.empty();
+                    }
+                    else if (response.getEventType() == ERROR) {
+                        LOG.warn("Income creation failed with error: {}", response.getData().getMessage());
+                        responseMessage.set(response.getData().getMessage());
+                        responseStatus.set(response.getData().getStatus());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during income creation");
+                        return Mono.error(new EventProcessingException("Could not process unknown response"));
+                    }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                    state.set(IncomeCreationState.INCOME_CREATED);
+                })
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == IncomeCreationState.INCOME_CREATED) {
+                        sendMessage("accounts-out-0", updateAccountCorrId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, incomeRecord.getAccountId(), amount));
+                    }
+                })).then(responseListener.waitForResponse(updateAccountCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of new income entity with id: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId());
+                        state.set(IncomeCreationState.ACCOUNT_UPDATED);
+                        return Mono.empty();
+                    }
+                    else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for new income entity with id: {}, error: {}", incomeRecord.getAccountId(), incomeRecord.getRecordId(), response.getData().getMessage());
+                        responseMessage.set(response.getData().getMessage());
+                        responseStatus.set(response.getData().getStatus());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during income creation");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                }).doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
+                    LOG.warn("Couldn't complete income creation saga due to error: {}", ex.getMessage());
+                    LOG.warn("Rolling back the income creation saga for income with id: {}", incomeRecord.getRecordId());
+                    if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        state.set(IncomeCreationState.ACCOUNT_UPDATED);
+                    }
+                    restoreIncomeCreation(state.get(), incomeRecord, amount);
+                }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
+                    if (responseStatus.get() == HttpStatus.CREATED) {
+                        String jsonString = responseMessage.get();
+                        IncomeRecord createdIncome = deserializeObjectFromJson(jsonString, IncomeRecord.class);
+                        return Mono.just(createdIncome);
+                    } else {
+                        return Mono.error(mapException(responseMessage.get(), responseStatus.get()));
+                    }
+                }));
+    }
+
     private Throwable mapException(String message, HttpStatus status) {
         return new ServiceResponseException(message, status);
     }
@@ -369,9 +438,28 @@ public class IncomeSagaImpl implements IncomeSaga {
                 break;
             default:
                 LOG.warn("Couldn't determine restore action for income creation state: {} with income id: {}", state, record.getRecordId());
+        }
+    }
+
+    private void restoreIncomeCreation(IncomeCreationState state, IncomeRecord record, BigDecimal amount) {
+        switch (state) {
+            case INIT:
+                LOG.info("No rollback needed after failed income creation with income id: {}", record.getRecordId());
+                break;
+            case ACCOUNT_UPDATED:
+                LOG.info("Rolling back account update for income creation with income id: {}", record.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, record.getAccountId(), amount));
+                LOG.info("Rolling back income creation with income id: {}", record.getRecordId());
+                sendMessage("incomes-out-0", new CrudEvent<String, IncomeRecord>(CrudEvent.Type.DELETE, record.getRecordId(), record));
+                break;
+            case INCOME_CREATED:
+                LOG.info("Rolling back income creation with income id: {}", record.getRecordId());
+                sendMessage("incomes-out-0", new CrudEvent<String, IncomeRecord>(CrudEvent.Type.DELETE, record.getRecordId(), record));
+                break;
+            default:
+                LOG.warn("Couldn't determine restore action for income creation state: {} with income id: {}", state, record.getRecordId());
                 return;
         }
-
     }
 
     private void restoreIncomeDeletion(IncomeDeletionState state, IncomeRecord record, BigDecimal amount) {

@@ -16,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Service
 @Validated
@@ -52,7 +53,7 @@ public class IncomeServiceImpl implements IncomeService {
         if (incomeRecord.getId() != null && incomeRecord.getId().length() != 24)
             throw new InvalidInputDataException("Id must be 24 characters long");
         incomeRecord.setVersion(null); //handled by mongo
-        incomeRecord.setTimestamp(LocalDateTime.now());
+        incomeRecord.setTimestamp(ZonedDateTime.now());
         return repository.save(incomeRecord)
                 .onErrorMap(
                         DuplicateKeyException.class,
