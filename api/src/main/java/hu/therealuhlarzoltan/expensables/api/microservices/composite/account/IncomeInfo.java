@@ -8,6 +8,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -20,7 +21,7 @@ public class IncomeInfo {
     private String currency;
     private BigDecimal amount;
     private Integer version;
-    private LocalDateTime incomeDate;
+    private ZonedDateTime incomeDate;
 
     public IncomeInfo() {
         this.recordId = null;
@@ -34,7 +35,7 @@ public class IncomeInfo {
         this.incomeDate = null;
     }
 
-    public IncomeInfo(String recordId, String accountId, Long userId, String incomeName, String incomeCategory, String currency, BigDecimal amount, Integer version, LocalDateTime incomeDate) {
+    public IncomeInfo(String recordId, String accountId, Long userId, String incomeName, String incomeCategory, String currency, BigDecimal amount, Integer version, ZonedDateTime incomeDate) {
         this.recordId = recordId;
         this.accountId = accountId;
         this.userId = userId;

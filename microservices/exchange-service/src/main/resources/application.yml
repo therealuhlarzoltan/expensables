@@ -6,6 +6,7 @@ app:
   eureka-server: localhost
   eureka-username: eureka_client
   eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+  exchange-api-url: https://currency-conversion-and-exchange-rates.p.rapidapi.com
 
 spring:
   application:
@@ -20,6 +21,41 @@ eureka:
   instance:
     leaseRenewalIntervalInSeconds: 5
     leaseExpirationDurationInSeconds: 5
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      exchangeApi:
+        allowHealthIndicatorToFail: false
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10000
+        recordExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+
+  timelimiter:
+    instances:
+      exchangeApi:
+        timeoutDuration: 6s # External API call
+
+  retry:
+    instances:
+      exchangeApi:
+        maxAttempts: 5 # External API call
+        waitDuration: 500 # External API call
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+
+
 
 springdoc:
   swagger-ui:

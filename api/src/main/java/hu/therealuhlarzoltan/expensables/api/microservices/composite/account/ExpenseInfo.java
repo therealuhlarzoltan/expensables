@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -17,7 +18,7 @@ public class ExpenseInfo {
     private String currency;
     private BigDecimal amount;
     private Integer version;
-    private LocalDateTime expenseDate;
+    private ZonedDateTime expenseDate;
 
     public ExpenseInfo() {
         this.recordId = null;
@@ -32,7 +33,7 @@ public class ExpenseInfo {
         this.expenseDate = null;
     }
 
-    public ExpenseInfo(String recordId, String accountId, Long userId, String expenseName, String expenseCategory, String expenseSubCategory, String currency, BigDecimal amount, Integer version, LocalDateTime expenseDate) {
+    public ExpenseInfo(String recordId, String accountId, Long userId, String expenseName, String expenseCategory, String expenseSubCategory, String currency, BigDecimal amount, Integer version, ZonedDateTime expenseDate) {
         this.recordId = recordId;
         this.accountId = accountId;
         this.userId = userId;

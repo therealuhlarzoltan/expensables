@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.ZonedDateTime;
+
 
 @Service
 @RequiredArgsConstructor
@@ -68,7 +70,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     public Mono<Void> deleteExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
         LOG.info("Will delegate the deleteExpenseWithExchange API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
         return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount(), expenseRecord.getExpenseDate())
-                .flatMap(exchange -> expenseSaga.deleteExpense(expenseRecord, exchange.getAmount()))
+                .flatMap(exchange -> expenseSaga.deleteExpense(expenseRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while deleting expense with exchange: {}", throwable.getMessage()));
     }
 
@@ -85,8 +87,8 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     @Override
     public Mono<IncomeRecord> createIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
         LOG.info("Will delegate the createIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
-        return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount(), incomeRecord.getIncomeDate())
-                .flatMap(exchange -> incomeSaga.createIncome(incomeRecord, exchange.getAmount()))
+        return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount(), ZonedDateTime.now())
+                .flatMap(exchange -> incomeSaga.createIncome(incomeRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while creating income with exchange: {}", throwable.getMessage()));
     }
 
@@ -94,7 +96,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     public Mono<Void> deleteIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
         LOG.info("Will delegate the deleteIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
         return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount(), incomeRecord.getIncomeDate())
-                .flatMap(exchange -> incomeSaga.deleteIncome(incomeRecord, exchange.getAmount()))
+                .flatMap(exchange -> incomeSaga.deleteIncome(incomeRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while deleting income with exchange: {}", throwable.getMessage()));
     }
 
@@ -102,7 +104,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     public Mono<IncomeRecord> updateIncomeWithExchange(IncomeRecord incomeRecord, String targetCurrency) {
         LOG.info("Will delegate the updateIncomeWithExchange API call to the IncomeSaga with id: {}", incomeRecord.getRecordId());
         return exchangeGateway.makeExchange(incomeRecord.getCurrency(), targetCurrency, incomeRecord.getAmount(), incomeRecord.getIncomeDate())
-                .flatMap(exchange -> incomeSaga.updateIncome(incomeRecord, exchange.getAmount()))
+                .flatMap(exchange -> incomeSaga.updateIncome(incomeRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while updating income with exchange: {}", throwable.getMessage()));
     }
 
@@ -118,7 +120,7 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     public Mono<ExpenseRecord> updateExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
         LOG.info("Will delegate the updateExpenseWithExchange API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
         return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount(), expenseRecord.getExpenseDate())
-                .flatMap(exchange -> expenseSaga.updateExpense(expenseRecord, exchange.getAmount()))
+                .flatMap(exchange -> expenseSaga.updateExpense(expenseRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while updating expense with exchange: {}", throwable.getMessage()));
     }
 
@@ -139,8 +141,8 @@ public class CashflowIntegrationImpl implements CashflowIntegration {
     @Override
     public Mono<ExpenseRecord> createExpenseWithExchange(ExpenseRecord expenseRecord, String targetCurrency) {
         LOG.info("Will delegate the createExpenseWithExchange API call to the ExpenseSaga with id: {}", expenseRecord.getRecordId());
-        return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount(), expenseRecord.getExpenseDate())
-                .flatMap(exchange -> expenseSaga.createExpense(expenseRecord, exchange.getAmount()))
+        return exchangeGateway.makeExchange(expenseRecord.getCurrency(), targetCurrency, expenseRecord.getAmount(), ZonedDateTime.now())
+                .flatMap(exchange -> expenseSaga.createExpense(expenseRecord, exchange.getResult()))
                 .doOnError(throwable -> LOG.error("Error while creating expenses with exchange: {}", throwable.getMessage()));
     }
 }

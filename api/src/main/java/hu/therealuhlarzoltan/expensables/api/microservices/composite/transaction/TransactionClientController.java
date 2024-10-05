@@ -18,7 +18,7 @@ public interface TransactionClientController {
     @PostMapping(value = "/api/transactions", produces = "application/json", consumes = "application/json")
     Mono<TransactionInfo> createTransaction(@RequestBody TransactionRequest transactionRequest);
     @PutMapping(value = "/api/transactions/{transactionId}", produces = "application/json", consumes = "application/json")
-    Mono<TransactionInfo> updateTransaction(@PathVariable String transactionId, @RequestBody TransactionRequest transactionRequest);
+    Mono<TransactionInfo> updateTransaction(@PathVariable String transactionId, @RequestBody TransactionUpdateRequest updateRequest);
     @DeleteMapping(value = "/api/transactions/{transactionId}", produces = "application/json")
     @ResponseStatus(HttpStatus.ACCEPTED)
     Mono<Void> deleteTransaction(@PathVariable String transactionId);

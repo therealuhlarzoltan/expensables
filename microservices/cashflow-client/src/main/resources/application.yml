@@ -81,6 +81,7 @@ resilience4j:
           - java.util.concurrent.TimeoutException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.UnprocessableEntity
       incomeService:
         allowHealthIndicatorToFail: false
         registerHealthIndicator: true
@@ -165,6 +166,7 @@ resilience4j:
           - org.springframework.web.reactive.function.client.WebClientResponseException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.UnprocessableEntity
 
 
 springdoc:

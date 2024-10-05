@@ -5,6 +5,7 @@ import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Getter
 @Setter
@@ -18,7 +19,7 @@ public class TransactionIncomeInfo extends IncomeInfo {
         this.fromAccountName = null;
     }
 
-    public TransactionIncomeInfo(String recordId, String accountId, Long userId, BigDecimal amount, Integer version, LocalDateTime incomeDate, String fromAccountId, String fromCurrency, String fromAccountName) {
+    public TransactionIncomeInfo(String recordId, String accountId, Long userId, BigDecimal amount, Integer version, ZonedDateTime incomeDate, String fromAccountId, String fromCurrency, String fromAccountName) {
         super(recordId, accountId, userId, "Transfer from " + fromAccountName, "Incoming transfer", fromCurrency, amount, version, incomeDate);
         this.fromAccountId = fromAccountId;
         this.fromAccountName = fromAccountName;

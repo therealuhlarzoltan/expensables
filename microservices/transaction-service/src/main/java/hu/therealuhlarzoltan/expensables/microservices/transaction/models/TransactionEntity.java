@@ -11,6 +11,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Data
 @AllArgsConstructor
@@ -39,5 +40,5 @@ public class TransactionEntity {
     @NotNull(message = "Amount is required")
     @Min(value = 0, message = "Amount must be greater than or equal to 0")
     private Double amount;
-    private LocalDateTime timestamp;
+    private ZonedDateTime timestamp;
 }

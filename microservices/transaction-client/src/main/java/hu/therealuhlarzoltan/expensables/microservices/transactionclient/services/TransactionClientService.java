@@ -2,6 +2,7 @@ package hu.therealuhlarzoltan.expensables.microservices.transactionclient.servic
 
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionInfo;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionRequest;
+import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionUpdateRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -17,7 +18,7 @@ public interface TransactionClientService {
 
     Mono<TransactionInfo> createTransaction(TransactionRequest transactionRequest);
 
-    Mono<TransactionInfo> updateTransaction(String transactionId, TransactionRequest transactionRequest);
+    Mono<TransactionInfo> updateTransaction(String transactionId, TransactionUpdateRequest updateRequest);
 
     Mono<Void> deleteTransaction(String transactionId);
 }

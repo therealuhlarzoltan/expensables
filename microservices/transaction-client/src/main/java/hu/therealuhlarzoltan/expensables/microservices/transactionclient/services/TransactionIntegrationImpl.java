@@ -5,6 +5,8 @@ import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceRes
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.AccountGateway;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.ExchangeGateway;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.TransactionGateway;
+import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.sagas.TransactionSaga;
+import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.account.Account;
@@ -38,6 +40,7 @@ import java.util.concurrent.TimeoutException;
 import static java.util.logging.Level.FINE;
 
 @Service
+@RequiredArgsConstructor
 public class TransactionIntegrationImpl implements TransactionIntegration {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionIntegrationImpl.class);
 
@@ -48,36 +51,54 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
     private final ObjectMapper objectMapper;
 
     private final StreamBridge streamBridge;
+    private final TransactionSaga transactionSaga;
 
-    private final Scheduler publishEventScheduler;
-
-    @Autowired
-    public TransactionIntegrationImpl(
-            @Qualifier("publishEventScheduler") Scheduler publishEventScheduler,
-            WebClient webClient,
-            ObjectMapper mapper,
-            StreamBridge streamBridge,
-            AccountGateway accountGateway,
-            ExchangeGateway exchangeGateway,
-            TransactionGateway transactionGateway) {
-        this.publishEventScheduler = publishEventScheduler;
-        this.webClient = webClient;
-        this.objectMapper = mapper;
-        this.streamBridge = streamBridge;
-        this.accountGateway = accountGateway;
-        this.exchangeGateway = exchangeGateway;
-        this.transactionGateway = transactionGateway;
-    }
 
     @Override
     public Mono<TransactionRecord> createTransaction(TransactionRecord transaction) {
-        return null;
+        LOG.info("Will delegate the createTransaction API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return transactionSaga.createTransaction(transaction)
+                .doOnError(throwable -> LOG.error("Error while creating transaction: {}", throwable.getMessage()));
     }
 
-
-    private Mono<TransactionRecord> createTransactionWithExchange() {
-        return null;
+    @Override
+    public Mono<TransactionRecord> createTransactionWithExchange(TransactionRecord transaction) {
+        LOG.info("Will delegate the createTransactionWithExchange API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return exchangeGateway.makeExchange(transaction.getFromCurrency(), transaction.getToCurrency(), transaction.getAmount(), transaction.getTransactionDate())
+                .flatMap(exchange -> transactionSaga.createTransaction(transaction, exchange.getResult()))
+                .doOnError(throwable -> LOG.error("Error while creating transaction with exchange: {}", throwable.getMessage()));
     }
+
+    @Override
+    public Mono<TransactionRecord> updateTransaction(TransactionRecord transaction) {
+        LOG.info("Will delegate the updateTransaction API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return transactionSaga.updateTransaction(transaction)
+                .doOnError(throwable -> LOG.error("Error while updating transaction: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<TransactionRecord> updateTransactionWithExchange(TransactionRecord transaction) {
+        LOG.info("Will delegate the updateTransactionWithExchange API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return exchangeGateway.makeExchange(transaction.getFromCurrency(), transaction.getToCurrency(), transaction.getAmount(), transaction.getTransactionDate())
+                .flatMap(exchange -> transactionSaga.updateTransaction(transaction, exchange.getResult()))
+                .doOnError(throwable -> LOG.error("Error while updating transaction with exchange: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<Void> deleteTransaction(TransactionRecord transaction) {
+        LOG.info("Will delegate the deleteTransaction API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return  transactionSaga.deleteTransaction(transaction)
+                .doOnError(throwable -> LOG.error("Error while deleting transaction: {}", throwable.getMessage()));
+    }
+
+    @Override
+    public Mono<Void> deleteTransactionWithExchange(TransactionRecord transaction) {
+        LOG.info("Will delegate the deleteTransactionWithExchange API call to the TransactionSaga with id: {}", transaction.getRecordId());
+        return exchangeGateway.makeExchange(transaction.getFromCurrency(), transaction.getToCurrency(), transaction.getAmount(), transaction.getTransactionDate())
+                .flatMap(exchange -> transactionSaga.deleteTransaction(transaction, exchange.getResult()))
+                .doOnError(throwable -> LOG.error("Error while deleting transaction with exchange: {}", throwable.getMessage()));
+    }
+
 
     @Override
     public Mono<TransactionRecord> getTransaction(String transactionId) {
@@ -97,16 +118,6 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
         return transactionGateway.getIncomingTransactions(accountId);
     }
 
-    @Override
-    public Mono<Void> deleteTransaction(String transactionId) {
-        return null;
-    }
-
-    @Override
-    public Mono<ExchangeResponse> exchangeCurrency(String fromCurrency, String toCurrency, BigDecimal amount) {
-        LOG.debug("Will delegate the exchangeCurrency API call to the ExchangeGateway");
-        return exchangeGateway.makeExchange(fromCurrency, toCurrency, amount);
-    }
 
     @Override
     public Mono<Account> getAccount(String accountId) {
@@ -119,6 +130,8 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
         LOG.info("Will delegate the getAccountWithFallback API call to the AccountGateway");
         return accountGateway.getAccountWithFallback(accountId);
     }
+
+
 
     @Override
     public Mono<Void> depositToAccount(String accountId, BigDecimal amount) {

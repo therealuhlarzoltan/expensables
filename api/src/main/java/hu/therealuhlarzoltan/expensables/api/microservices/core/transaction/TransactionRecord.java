@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Data
 @NoArgsConstructor
@@ -21,5 +22,5 @@ public class TransactionRecord {
     private BigDecimal amount;
     private String fromCurrency;
     private String toCurrency;
-    private LocalDateTime transactionDate;
+    private ZonedDateTime transactionDate;
 }

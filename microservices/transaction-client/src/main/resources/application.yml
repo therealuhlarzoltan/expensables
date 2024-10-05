@@ -25,6 +25,29 @@ spring:
     proxy-target-class: true
     auto: true
 
+  cloud:
+    function.definition: accountResponseProcessor;transactionResponseProcessor
+    stream:
+      defaultBinder: rabbit
+      default.contentType: application/json
+      bindings:
+        accounts-out-0:
+          destination: accounts
+          producer:
+            required-groups: auditGroup
+        transactions-out-0:
+          destination: transactions
+          producer:
+                required-groups: auditGroup
+        accountResponseProcessor-in-0:
+          destination: accountResponses
+          group: accountResponsesGroup
+          contentType: application/json
+        transactionResponseProcessor-in-0:
+          destination: transactionResponses
+          group: incomeResponsesGroup
+          contentType: application/json
+
 eureka:
   client:
     serviceUrl:
@@ -80,6 +103,7 @@ resilience4j:
           - java.util.concurrent.TimeoutException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
 
   timelimiter:
     instances:
@@ -99,6 +123,7 @@ resilience4j:
           - org.springframework.web.reactive.function.client.WebClientResponseException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
       transactionService:
         maxAttempts: 3
         waitDuration: 1000
@@ -106,6 +131,7 @@ resilience4j:
           - org.springframework.web.reactive.function.client.WebClientResponseException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.NotFound
       exchangeService:
         maxAttempts: 5 # External API call
         waitDuration: 500 # External API call
@@ -113,6 +139,7 @@ resilience4j:
           - org.springframework.web.reactive.function.client.WebClientResponseException
         ignoreExceptions:
           - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.UnprocessableEntity
 
 springdoc:
   swagger-ui:

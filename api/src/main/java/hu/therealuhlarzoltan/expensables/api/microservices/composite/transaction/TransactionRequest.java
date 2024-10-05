@@ -9,16 +9,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@NoArgsConstructor(force = true)
 public class TransactionRequest {
-    private Integer version;
     private Long userId;
-    private String fromAccountId;
-    private String toAccountId;
-    private BigDecimal amount;
-    private String fromCurrency;
-    private String toCurrency;
-    private LocalDateTime transactionDate;
+    private final String fromAccountId;
+    private final String toAccountId;
+    private final BigDecimal amount;
 }

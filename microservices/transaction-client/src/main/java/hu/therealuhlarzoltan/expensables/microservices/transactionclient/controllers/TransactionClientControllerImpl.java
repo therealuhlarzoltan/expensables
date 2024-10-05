@@ -3,6 +3,7 @@ package hu.therealuhlarzoltan.expensables.microservices.transactionclient.contro
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionClientController;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionInfo;
 import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionRequest;
+import hu.therealuhlarzoltan.expensables.api.microservices.composite.transaction.TransactionUpdateRequest;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.services.TransactionClientService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -46,9 +47,9 @@ public class TransactionClientControllerImpl implements TransactionClientControl
     }
 
     @Override
-    public Mono<TransactionInfo> updateTransaction(String transactionId, TransactionRequest transactionRequest) {
-        LOG.info("Received a PUT request to update a transaction with id: {} and body: {}", transactionId, transactionRequest);
-        return service.updateTransaction(transactionId, transactionRequest);
+    public Mono<TransactionInfo> updateTransaction(String transactionId, TransactionUpdateRequest updateRequest) {
+        LOG.info("Received a PUT request to update a transaction with id: {} and body: {}", transactionId, updateRequest);
+        return service.updateTransaction(transactionId, updateRequest);
     }
 
     @Override

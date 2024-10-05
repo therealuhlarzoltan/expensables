@@ -9,13 +9,13 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 
 public interface TransactionIntegration {
-    Mono<TransactionRecord> createTransaction(TransactionRecord transaction);
-
     Mono<TransactionRecord> getTransaction(String transactionId);
-
-    Mono<Void> deleteTransaction(String transactionId);
-
-    Mono<ExchangeResponse> exchangeCurrency(String fromCurrency, String toCurrency, BigDecimal amount);
+    Mono<TransactionRecord> createTransaction(TransactionRecord transaction);
+    Mono<TransactionRecord> createTransactionWithExchange(TransactionRecord transaction);
+    Mono<TransactionRecord> updateTransaction(TransactionRecord transaction);
+    Mono<TransactionRecord> updateTransactionWithExchange(TransactionRecord transaction);
+    Mono<Void> deleteTransaction(TransactionRecord transaction);
+    Mono<Void> deleteTransactionWithExchange(TransactionRecord transaction);
 
     Mono<Account> getAccount(String accountId);
     Mono<Account> getAccountWithFallback(String accountId);
@@ -23,7 +23,6 @@ public interface TransactionIntegration {
     Flux<TransactionRecord> getIncomingTransactions(String accountId);
 
     Mono<Void> depositToAccount(String accountId, BigDecimal amount);
-
     Mono<Void> withdrawFromAccount(String accountId, BigDecimal amount);
 
     Mono<String> getAccountCurrency(String toAccountId);

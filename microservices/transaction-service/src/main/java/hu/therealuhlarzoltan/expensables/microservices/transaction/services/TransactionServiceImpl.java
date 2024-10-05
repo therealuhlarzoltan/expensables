@@ -17,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Service
@@ -66,7 +67,7 @@ public class TransactionServiceImpl implements TransactionService {
         if (entity.getFromAccountId().equals(entity.getToAccountId()))
             throw new InvalidInputDataException("From and to account ids must be different");
         entity.setVersion(null); //handled by MongoDB
-        entity.setTimestamp(LocalDateTime.now());
+        entity.setTimestamp(ZonedDateTime.now());
         return repository.save(entity)
                 .onErrorMap(
                         DuplicateKeyException.class,
