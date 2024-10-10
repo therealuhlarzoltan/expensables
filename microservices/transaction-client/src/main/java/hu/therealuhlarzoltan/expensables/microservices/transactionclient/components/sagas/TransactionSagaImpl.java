@@ -1,7 +1,6 @@
 package hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.sagas;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import hu.therealuhlarzoltan.expensables.api.microservices.core.expense.ExpenseRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.AccountEvent;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.CrudEvent;
@@ -89,6 +88,7 @@ public class TransactionSagaImpl implements TransactionSaga {
         String updateToAccountCorrId = UUID.randomUUID().toString();
         AtomicReference<String> responseMessage = new AtomicReference<>();
         AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.CREATED);
+
         return Mono.fromRunnable(() -> {
                     LOG.info("Starting the transaction creation saga for transaction: {}", transactionRecord);
                     sendMessage("transactions-out-0", createTransactionCorrId, new CrudEvent<String, TransactionRecord>(CrudEvent.Type.CREATE, transactionRecord.getRecordId(), transactionRecord));
@@ -99,8 +99,7 @@ public class TransactionSagaImpl implements TransactionSaga {
                         state.set(TransactionCreationState.TRANSACTION_CREATED);
                         responseMessage.set(response.getData().getMessage());
                         return Mono.empty();
-                    }
-                    else if (response.getEventType() == ERROR) {
+                    } else if (response.getEventType() == ERROR) {
                         LOG.warn("Transaction creation failed with error: {}", response.getData().getMessage());
                         responseMessage.set(response.getData().getMessage());
                         responseStatus.set(response.getData().getStatus());
@@ -109,9 +108,6 @@ public class TransactionSagaImpl implements TransactionSaga {
                         LOG.error("Unknown response event received during transaction creation");
                         return Mono.error(new EventProcessingException("Could not process unknown response"));
                     }
-                })
-                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
-                    state.set(TransactionCreationState.TRANSACTION_CREATED);
                 })
                 .then(Mono.fromRunnable(() -> {
                     if (state.get() == TransactionCreationState.TRANSACTION_CREATED) {
@@ -123,8 +119,7 @@ public class TransactionSagaImpl implements TransactionSaga {
                         LOG.info("Account updated successfully with id: {} because of new transaction entity with id: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
                         state.set(TransactionCreationState.FROM_ACCOUNT_WITHDRAWN);
                         return Mono.empty();
-                    }
-                    else if (response.getEventType() == ERROR) {
+                    } else if (response.getEventType() == ERROR) {
                         LOG.warn("Failed to update account with id {} for new transaction entity with id: {}, error: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
                         responseMessage.set(response.getData().getMessage());
                         responseStatus.set(response.getData().getStatus());
@@ -144,8 +139,7 @@ public class TransactionSagaImpl implements TransactionSaga {
                         LOG.info("Account updated successfully with id: {} because of new transaction entity with id: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
                         state.set(TransactionCreationState.TO_ACCOUNT_DEPOSITED);
                         return Mono.empty();
-                    }
-                    else if (response.getEventType() == ERROR) {
+                    } else if (response.getEventType() == ERROR) {
                         LOG.warn("Failed to update account with id {} for new transaction entity with id: {}, error: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
                         responseMessage.set(response.getData().getMessage());
                         responseStatus.set(response.getData().getStatus());
@@ -155,14 +149,28 @@ public class TransactionSagaImpl implements TransactionSaga {
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
                 })
-                .doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
+                .onErrorResume(ex -> {
+                    if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        switch (state.get()) {
+                            case INIT:
+                                state.set(TransactionCreationState.TRANSACTION_CREATED);
+                                break;
+                            case TRANSACTION_CREATED:
+                                state.set(TransactionCreationState.FROM_ACCOUNT_WITHDRAWN);
+                                break;
+                            case FROM_ACCOUNT_WITHDRAWN:
+                                state.set(TransactionCreationState.TO_ACCOUNT_DEPOSITED);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                     LOG.warn("Couldn't complete transaction creation saga due to error: {}", ex.getMessage());
                     LOG.warn("Rolling back the transaction creation saga for expense with id: {}", transactionRecord.getRecordId());
-                    if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
-                        state.set(TransactionCreationState.TO_ACCOUNT_DEPOSITED);
-                    }
-                    restoreTransactionCreation(state.get(),transactionRecord, transactionRecord.getAmount(), transactionRecord.getAmount());
-                }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
+                    restoreTransactionCreation(state.get(), transactionRecord, transactionRecord.getAmount(), transactionRecord.getAmount());
+                    return Mono.error(ex);
+                })
+                .subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
                     if (responseStatus.get() == HttpStatus.CREATED) {
                         String jsonString = responseMessage.get();
                         TransactionRecord createdTransaction = deserializeObjectFromJson(jsonString, TransactionRecord.class);
@@ -171,7 +179,7 @@ public class TransactionSagaImpl implements TransactionSaga {
                         return Mono.error(mapException(responseMessage.get(), responseStatus.get()));
                     }
                 }));
-    }
+        }
 
     @Override
     public Mono<TransactionRecord> createTransaction(TransactionRecord transactionRecord, BigDecimal amount) {
@@ -201,9 +209,6 @@ public class TransactionSagaImpl implements TransactionSaga {
                         LOG.error("Unknown response event received during transaction creation");
                         return Mono.error(new EventProcessingException("Could not process unknown response"));
                     }
-                })
-                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
-                    state.set(TransactionCreationState.TRANSACTION_CREATED);
                 })
                 .then(Mono.fromRunnable(() -> {
                     if (state.get() == TransactionCreationState.TRANSACTION_CREATED) {
@@ -247,14 +252,28 @@ public class TransactionSagaImpl implements TransactionSaga {
                         return Mono.error(new EventProcessingException("Could not process unknown response event"));
                     }
                 })
-                .doOnError((ex) -> ex instanceof ServiceResponseException, (ex) -> {
-                    LOG.warn("Couldn't complete transaction creation saga due to error: {}", ex.getMessage());
-                    LOG.warn("Rolling back the transaction creation saga for transaction with id: {}", transactionRecord.getRecordId());
-                    if (((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
-                        state.set(TransactionCreationState.TO_ACCOUNT_DEPOSITED);
+                .onErrorResume(ex -> {
+                    if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                        switch (state.get()) {
+                            case INIT:
+                                state.set(TransactionCreationState.TRANSACTION_CREATED);
+                                break;
+                            case TRANSACTION_CREATED:
+                                state.set(TransactionCreationState.FROM_ACCOUNT_WITHDRAWN);
+                                break;
+                            case FROM_ACCOUNT_WITHDRAWN:
+                                state.set(TransactionCreationState.TO_ACCOUNT_DEPOSITED);
+                                break;
+                            default:
+                                break;
+                        }
                     }
+                    LOG.warn("Couldn't complete transaction creation saga due to error: {}", ex.getMessage());
+                    LOG.warn("Rolling back the transaction creation saga for expense with id: {}", transactionRecord.getRecordId());
                     restoreTransactionCreation(state.get(), transactionRecord, transactionRecord.getAmount(), amount);
-                }).subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
+                    return Mono.error(ex);
+                })
+               .subscribeOn(publishEventScheduler).then(Mono.defer(() -> {
                     if (responseStatus.get() == HttpStatus.CREATED) {
                         String jsonString = responseMessage.get();
                         TransactionRecord createdTransaction = deserializeObjectFromJson(jsonString, TransactionRecord.class);
@@ -266,15 +285,159 @@ public class TransactionSagaImpl implements TransactionSaga {
     }
 
     @Override
-    public Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord) {
+    public Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord, BigDecimal amount) {
         AtomicReference<TransactionUpdateState> state = new AtomicReference<>(TransactionUpdateState.INIT);
-        return null;
+        AtomicReference<String> responseMessage = new AtomicReference<>("");
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.OK);
+        String fromAccountUpdateCorrId = UUID.randomUUID().toString();
+        String toAccountUpdateCorrId = UUID.randomUUID().toString();
+        String transactionUpdateCorrId = UUID.randomUUID().toString();
+        return Mono.fromRunnable(() -> {
+            LOG.info("Starting transaction update saga with transaction id: {}", transactionRecord.getRecordId());
+        }).then(
+                amount.compareTo(BigDecimal.ZERO) != 0
+                        ? handleFromAccountUpdate(transactionRecord, amount, fromAccountUpdateCorrId, state)
+                        : Mono.empty()
+        ).then(
+                amount.compareTo(BigDecimal.ZERO) != 0
+                        ? handleToAccountUpdate(transactionRecord, amount, toAccountUpdateCorrId, state)
+                        : Mono.empty()
+        ).then(
+                Mono.fromRunnable(() -> {
+                    LOG.info("Updating transaction record with id: {}", transactionRecord.getRecordId());
+                    sendMessage("transactions-out-0", transactionUpdateCorrId, new CrudEvent<>(CrudEvent.Type.UPDATE, transactionRecord.getRecordId(), transactionRecord));
+                })
+        ).then(
+                responseListener.waitForResponse(transactionUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                        .flatMap(response -> {
+                            if (response.getEventType() == SUCCESS) {
+                                state.set(TransactionUpdateState.TRANSACTION_UPDATED);
+                                String jsonString = response.getData().getMessage();
+                                TransactionRecord updatedTransaction = deserializeObjectFromJson(jsonString, TransactionRecord.class);
+                                return Mono.just(updatedTransaction);
+                            } else if (response.getEventType() == ERROR) {
+                                LOG.error("Couldn't update transaction record from transaction saga for transaction id: {}", transactionRecord.getRecordId());
+                                return Mono.error(createMessageResponseError(response.getData()));
+                            } else {
+                                LOG.error("Unknown response event received inside transaction update saga for transaction id: {}", transactionRecord.getRecordId());
+                                return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                            }
+                        })
+                        .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                            state.set(TransactionUpdateState.TRANSACTION_UPDATED);
+                        })
+        ).onErrorResume(ex -> {
+            LOG.info("Encountered an error during transaction update with id: {}, exception: {}", transactionRecord.getRecordId(), ex.getMessage());
+            restoreTransactionUpdate(state.get(), transactionRecord, amount, amount);
+            return Mono.error(ex);
+        }).subscribeOn(publishEventScheduler);
+    }
+
+    private Mono<Void> handleFromAccountUpdate(TransactionRecord transactionRecord, BigDecimal amount, String accountUpdateCorrId, AtomicReference<TransactionUpdateState> state) {
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            LOG.info("Depositing account with id: {}, due to updated transaction record with id {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, transactionRecord.getFromAccountId(), amount.abs()));
+        } else {
+            LOG.info("Withdrawing money from account with id: {}, due to updated transaction record with id {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, transactionRecord.getFromAccountId(), amount));
+        }
+
+        return responseListener.waitForResponse(accountUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        state.set(TransactionUpdateState.FROM_ACCOUNT_UPDATED);
+                        return Mono.<Void>empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.error("Couldn't update corresponding account balance from transaction saga for transaction id: {}", transactionRecord.getRecordId());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received inside transaction update saga for transaction id: {}", transactionRecord.getRecordId());
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) ->  {
+                    state.set(TransactionUpdateState.FROM_ACCOUNT_UPDATED);
+                })
+                .subscribeOn(publishEventScheduler);
+    }
+
+
+
+    private Mono<Void> handleToAccountUpdate(TransactionRecord transactionRecord, BigDecimal amount, String accountUpdateCorrId, AtomicReference<TransactionUpdateState> state) {
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            LOG.info("Withdrawing money from account with id: {}, due to updated transaction record with id {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, transactionRecord.getFromAccountId(), amount.abs()));
+        } else {
+            LOG.info("Depositing money to account with id: {}, due to updated transaction record with id {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+            sendMessage("accounts-out-0", accountUpdateCorrId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, transactionRecord.getFromAccountId(), amount));
+        }
+
+        return responseListener.waitForResponse(accountUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        state.set(TransactionUpdateState.TO_ACCOUNT_UPDATED);
+                        return Mono.<Void>empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.error("Couldn't update corresponding account balance from transaction saga for transaction id: {}", transactionRecord.getRecordId());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received inside transaction update saga for transaction id: {}", transactionRecord.getRecordId());
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) ->  {
+                    state.set(TransactionUpdateState.TO_ACCOUNT_UPDATED);
+                })
+                .subscribeOn(publishEventScheduler);
     }
 
     @Override
-    public Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord, BigDecimal amount) {
+    public Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord, BigDecimal fromAmount, BigDecimal toAmount) {
         AtomicReference<TransactionUpdateState> state = new AtomicReference<>(TransactionUpdateState.INIT);
-        return null;
+        AtomicReference<String> responseMessage = new AtomicReference<>("");
+        AtomicReference<HttpStatus> responseStatus = new AtomicReference<>(HttpStatus.OK);
+        String fromAccountUpdateCorrId = UUID.randomUUID().toString();
+        String toAccountUpdateCorrId = UUID.randomUUID().toString();
+        String transactionUpdateCorrId = UUID.randomUUID().toString();
+        return Mono.fromRunnable(() -> {
+            LOG.info("Starting transaction update saga with transaction id: {}", transactionRecord.getRecordId());
+        }).then(
+                fromAmount.compareTo(BigDecimal.ZERO) != 0
+                        ? handleFromAccountUpdate(transactionRecord, fromAmount, fromAccountUpdateCorrId, state)
+                        : Mono.empty()
+        ).then(
+                toAmount.compareTo(BigDecimal.ZERO) != 0
+                        ? handleToAccountUpdate(transactionRecord, toAmount, toAccountUpdateCorrId, state)
+                        : Mono.empty()
+        ).then(
+                Mono.fromRunnable(() -> {
+                    LOG.info("Updating transaction record with id: {}", transactionRecord.getRecordId());
+                    sendMessage("transactions-out-0", transactionUpdateCorrId, new CrudEvent<>(CrudEvent.Type.UPDATE, transactionRecord.getRecordId(), transactionRecord));
+                })
+        ).then(
+                responseListener.waitForResponse(transactionUpdateCorrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION))
+                        .flatMap(response -> {
+                            if (response.getEventType() == SUCCESS) {
+                                state.set(TransactionUpdateState.TRANSACTION_UPDATED);
+                                String jsonString = response.getData().getMessage();
+                                TransactionRecord updatedTransaction = deserializeObjectFromJson(jsonString, TransactionRecord.class);
+                                return Mono.just(updatedTransaction);
+                            } else if (response.getEventType() == ERROR) {
+                                LOG.error("Couldn't update transaction record from transaction saga for transaction id: {}", transactionRecord.getRecordId());
+                                return Mono.error(createMessageResponseError(response.getData()));
+                            } else {
+                                LOG.error("Unknown response event received inside transaction update saga for transaction id: {}", transactionRecord.getRecordId());
+                                return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                            }
+                        })
+                        .doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+                            state.set(TransactionUpdateState.TRANSACTION_UPDATED);
+                        })
+        ).onErrorResume(ex -> {
+            LOG.info("Encountered an error during transaction update with id: {}, exception: {}", transactionRecord.getRecordId(), ex.getMessage());
+            restoreTransactionUpdate(state.get(), transactionRecord, fromAmount, toAmount);
+            return Mono.error(ex);
+        }).subscribeOn(publishEventScheduler);
     }
 
     @Override
@@ -331,17 +494,17 @@ public class TransactionSagaImpl implements TransactionSaga {
             case INIT:
                 LOG.info("No action needed to restore transaction creation with state {}", state);
                 break;
-            case TO_ACCOUNT_DEPOSITED:
-                LOG.info("Withdrawing deposited money from account with id {}", transaction.getToAccountId());
-                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, transaction.getToAccountId(), toAmount));
+            case FROM_ACCOUNT_WITHDRAWN:
+                LOG.info("Depositing withdrawn money from account with id {}", transaction.getFromAccountId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getFromAccountId(), fromAmount));
                 LOG.info("Deleting created transaction with id {}", transaction.getRecordId());
                 sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.DELETE, transaction.getRecordId(), transaction));
                 break;
-            case FROM_ACCOUNT_WITHDRAWN:
-                LOG.info("Depositing withdrawn money to account with id {}", transaction.getFromAccountId());
-                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getFromAccountId(), fromAmount));
+            case TO_ACCOUNT_DEPOSITED:
                 LOG.info("Withdrawing deposited money from account with id {}", transaction.getToAccountId());
                 sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, transaction.getToAccountId(), toAmount));
+                LOG.info("Depositing withdrawn money from account with id {}", transaction.getFromAccountId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getFromAccountId(), fromAmount));
                 LOG.info("Deleting created transaction with id {}", transaction.getRecordId());
                 sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.DELETE, transaction.getRecordId(), transaction));
                 break;
@@ -351,6 +514,27 @@ public class TransactionSagaImpl implements TransactionSaga {
                 break;
             default:
                 LOG.warn("Couldn't determine restore action for transaction creation with state {}", state);
+        }
+    }
+
+    private void restoreTransactionUpdate(TransactionUpdateState state, TransactionRecord transaction, BigDecimal fromAmount, BigDecimal toAmount) {
+        LOG.info("Rolling back transaction update with id {} state {}", transaction.getRecordId(), state);
+        switch (state) {
+            case INIT:
+                LOG.info("No action needed to restore transaction update with state {}", state);
+                break;
+            case FROM_ACCOUNT_UPDATED:
+                LOG.info("Depositing withdrawn money to account with id {} because of failed transaction update", transaction.getFromAccountId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getFromAccountId(), fromAmount));
+                break;
+            case TO_ACCOUNT_UPDATED:
+                LOG.info("Withdrawing deposited money from account with id {} because of failed transaction update", transaction.getToAccountId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, transaction.getToAccountId(), toAmount));
+                LOG.info("Depositing withdrawn money to account with id {} because of failed transaction update", transaction.getFromAccountId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getFromAccountId(), fromAmount));
+                break;
+            default:
+                LOG.warn("Couldn't determine restore action for transaction update with state {}", state);
         }
     }
 }

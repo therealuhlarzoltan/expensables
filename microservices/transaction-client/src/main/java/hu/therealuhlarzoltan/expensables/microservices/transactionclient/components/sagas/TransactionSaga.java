@@ -8,8 +8,8 @@ import java.math.BigDecimal;
 public interface TransactionSaga {
     Mono<TransactionRecord> createTransaction(TransactionRecord transactionRecord);
     Mono<TransactionRecord> createTransaction(TransactionRecord transactionRecord, BigDecimal amount);
-    Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord);
     Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord, BigDecimal amount);
+    Mono<TransactionRecord> updateTransaction(TransactionRecord transactionRecord, BigDecimal fromAmount, BigDecimal toAmount);
     Mono<Void> deleteTransaction(TransactionRecord transactionRecord);
     Mono<Void> deleteTransaction(TransactionRecord transactionRecord, BigDecimal amount);
 }

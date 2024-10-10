@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.time.ZonedDateTime;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -109,6 +111,7 @@ public class TransactionClientServiceImpl implements TransactionClientService {
                             if (fromAccountCurrency.get().equals(toAccountCurrency.get())) {
                                 return integration.createTransaction(record);
                             } else {
+                                record.setTransactionDate(ZonedDateTime.now());
                                 return integration.createTransactionWithExchange(record);
                             }
                         }
@@ -138,12 +141,26 @@ public class TransactionClientServiceImpl implements TransactionClientService {
                 .doOnError(ex -> LOG.error("Transaction with id {} not found", transactionId))
                 .flatMap(transactionRecord -> {
                    if (transactionRecord.getFromCurrency().equals(transactionRecord.getToCurrency())) {
-                       return integration.updateTransaction(transactionMapper.transactionUpdateToRecord(updateRequest))
-                               .map(transactionMapper::transactionRecordToInfo);
+                       return integration.updateTransaction(transactionRecord, updateRequest.getAmount());
                    } else {
-                       return integration.updateTransactionWithExchange(transactionMapper.transactionUpdateToRecord(updateRequest))
-                               .map(transactionMapper::transactionRecordToInfo);
+                       return integration.updateTransactionWithExchange(transactionRecord, updateRequest.getAmount());
                    }
+                })
+                .map(transactionMapper::transactionRecordToInfo)
+                .flatMap(info -> {
+                    LOG.info("Resolving account names for transaction: {}", info);
+                    Mono<String> fromAccountNameMono = integration.getAccountWithFallback(info.getFromAccountId())
+                            .map(account -> account.getAccountName());
+                    Mono<String> toAccountNameMono = integration.getAccountWithFallback(info.getToAccountId())
+                            .map(account -> account.getAccountName());
+
+                    return Mono.zip(fromAccountNameMono, toAccountNameMono)
+                            .map(tuple -> {
+                                LOG.info("Resolved accounts {} and {} for transaction with id {}", tuple.getT1(), tuple.getT2(), info.getTransactionId());
+                                info.setFromAccountName(tuple.getT1());
+                                info.setToAccountName(tuple.getT2());
+                                return info;
+                            });
                 });
     }
 
