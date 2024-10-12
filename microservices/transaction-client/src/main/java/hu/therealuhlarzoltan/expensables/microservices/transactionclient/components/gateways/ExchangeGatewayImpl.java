@@ -79,4 +79,20 @@ public class ExchangeGatewayImpl implements ExchangeGateway {
         //"Re-throwing" the exception if it's not a 5xx error
         return Mono.error(ex);
     }
+
+    //Handling timeouts
+    public Mono<ExchangeResponse> handleTimeoutFallback(String fromCurrency, String toCurrency, BigDecimal amount, ZonedDateTime date, TimeoutException ex) {
+        return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+    }
+
+    public Mono<ExchangeResponse> handleFallback(String fromCurrency, String toCurrency, BigDecimal amount, ZonedDateTime date, Throwable ex) {
+        //Only handling 5xx server errors here
+        if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
+            return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+        } else if (ex instanceof CallNotPermittedException) {
+            return Mono.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+        }
+        //"Re-throwing" the exception if it's not a 5xx error
+        return Mono.error(ex);
+    }
 }

@@ -74,8 +74,8 @@ public class TransactionIntegrationImpl implements TransactionIntegration {
     @Override
     public Mono<TransactionRecord> updateTransactionWithExchange(TransactionRecord transaction, BigDecimal amount) {
         LOG.info("Will delegate the updateTransactionWithExchange API call to the TransactionSaga with id: {}", transaction.getRecordId());
-        return exchangeGateway.makeExchange(transaction.getFromCurrency(), transaction.getToCurrency(), amount, transaction.getTransactionDate())
-                .flatMap(exchange -> transactionSaga.updateTransaction(transaction, exchange.getResult().subtract(transaction.getAmount())))
+        return exchangeGateway.makeExchange(transaction.getFromCurrency(), transaction.getToCurrency(), amount.subtract(transaction.getAmount()).abs(), transaction.getTransactionDate())
+                .flatMap(exchange -> transactionSaga.updateTransaction(transaction, amount.subtract(transaction.getAmount()),  amount.subtract(transaction.getAmount()).compareTo(BigDecimal.ZERO) > 0 ? exchange.getResult() : exchange.getResult().negate()))
                 .doOnError(throwable -> LOG.error("Error while updating transaction with exchange: {}", throwable.getMessage()));
     }
 

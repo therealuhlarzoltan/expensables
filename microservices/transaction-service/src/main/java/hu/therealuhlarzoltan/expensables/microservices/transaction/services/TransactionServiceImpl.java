@@ -89,7 +89,7 @@ public class TransactionServiceImpl implements TransactionService {
                     existingEntity.setToCurrency(entity.getToCurrency());
                     existingEntity.setFromAccountId(entity.getFromAccountId());
                     existingEntity.setToAccountId(entity.getToAccountId());
-                    return repository.save(entity);
+                    return repository.save(existingEntity);
                 })
                 .map(mapper::entityToApi);
     }

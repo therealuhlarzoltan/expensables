@@ -1,5 +1,7 @@
 package hu.therealuhlarzoltan.expensables.microservices.expense.models;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.ser.ZonedDateTimeSerializer;
 import hu.therealuhlarzoltan.expensables.microservices.expense.annotations.ExpenseCategoryExists;
 import hu.therealuhlarzoltan.expensables.microservices.expense.annotations.ExpenseSubCategoryExists;
 import jakarta.validation.constraints.Min;

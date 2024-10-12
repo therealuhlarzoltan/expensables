@@ -14,6 +14,7 @@ import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProce
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InsufficientFundsException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.function.Consumer;
@@ -71,37 +73,53 @@ public class MessageProcessorConfig {
                 switch (crudEvent.getEventType()) {
                     case CREATE:
                         TransactionRecord transaction = crudEvent.getData();
-                        controller.createTransaction(transaction)
-                                .doOnSuccess(createdExpense -> {
-                                    String jsonString = serializeObjectToJson(createdExpense);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to create transaction, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        try {
+                            controller.createTransaction(transaction)
+                                    .doOnSuccess(createdExpense -> {
+                                        String jsonString = serializeObjectToJson(createdExpense);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.CREATED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorResume(throwable -> {
+                                        LOG.error("Failed to create transaction, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to create transaction, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case UPDATE:
                         TransactionRecord transactionToUpdate = crudEvent.getData();
-                        controller.updateTransaction(transactionToUpdate)
-                                .doOnSuccess(updatedExpense -> {
-                                    String jsonString = serializeObjectToJson(updatedExpense);
-                                    ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
-                                    sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
-                                })
-                                .doOnError(throwable -> {
-                                    LOG.error("Failed to update transaction, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
-                                    HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
-                                    sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
-                                })
-                                .subscribe();
+                        try {
+                            controller.updateTransaction(transactionToUpdate)
+                                    .doOnSuccess(updatedExpense -> {
+                                        String jsonString = serializeObjectToJson(updatedExpense);
+                                        ResponsePayload httpInfo = new ResponsePayload(jsonString, HttpStatus.ACCEPTED);
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.SUCCESS, correlationId, httpInfo);
+                                        sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                                    })
+                                    .onErrorResume(throwable -> {
+                                        LOG.error("Failed to update transaction, exception message: {}", throwable.getMessage());
+                                        ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
+                                        HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                                        sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                                        return Mono.empty();
+                                    })
+                                    .subscribe();
+                        } catch (Exception ex) {
+                            LOG.error("Failed to update transaction, exception message: {}", ex.getMessage());
+                            ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
+                            HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
+                            sendResponseMessage("transactionResponses-out-0", correlationId, responseEvent);
+                        }
                         break;
                     case DELETE:
                         String transactionId = crudEvent.getKey();
@@ -163,5 +181,14 @@ public class MessageProcessorConfig {
             case InvalidInputDataException invalidInputDataException -> HttpStatus.UNPROCESSABLE_ENTITY;
             case null, default -> HttpStatus.FAILED_DEPENDENCY;
         };
+    }
+
+    private String getExceptionMessage(Throwable throwable) {
+       if (throwable instanceof ConstraintViolationException cv)
+           return cv.getConstraintViolations().stream().map(ConstraintViolation::getMessage).findFirst().orElse("Constraint violation");
+       else if (throwable instanceof MethodArgumentNotValidException manve)
+           return manve.getAllErrors().getFirst().getDefaultMessage();
+       else
+          return throwable.getMessage();
     }
 }
