@@ -7,6 +7,7 @@ import hu.therealuhlarzoltan.expensables.api.microservices.events.CrudEvent;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.Event;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.ResponsePayload;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProcessingException;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.components.gateways.TransactionGateway;
 import hu.therealuhlarzoltan.expensables.microservices.transactionclient.services.ResponseListenerService;
@@ -486,13 +487,163 @@ public class TransactionSagaImpl implements TransactionSaga {
     @Override
     public Mono<Void> deleteTransaction(TransactionRecord transactionRecord) {
         AtomicReference<TransactionDeletionState> state = new AtomicReference<>(TransactionDeletionState.INIT);
-        return null;
+        String fromAccountUpdateId = UUID.randomUUID().toString();
+        String toAccountUpdateId = UUID.randomUUID().toString();
+        return transactionGateway.getTransaction(transactionRecord.getRecordId())
+                .onErrorMap(e -> {
+                    LOG.warn("Transaction record not found: {}", transactionRecord.getRecordId());
+                    return new NotFoundException("Transaction record to delete not found");
+                })
+                .then(Mono.fromRunnable(() -> {
+                    LOG.info("Starting the transaction deletion saga for transaction: {}", transactionRecord);
+                    sendMessage("transactions-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, transactionRecord.getRecordId(), transactionRecord));
+                }))
+                .then(Mono.delay(Duration.ofSeconds(1)))
+                .then(transactionGateway.getTransaction(transactionRecord.getRecordId())
+                        .onErrorResume(NotFoundException.class, e -> {
+                            state.set(TransactionDeletionState.TRANSACTION_DELETED);
+                            return Mono.empty();
+                        })
+                )
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == TransactionDeletionState.TRANSACTION_DELETED) {
+                        sendMessage("accounts-out-0", toAccountUpdateId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, transactionRecord.getToAccountId(), transactionRecord.getAmount()));
+                    }
+                }))
+                .then(responseListener.waitForResponse(toAccountUpdateId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted transaction entity with id: {}", transactionRecord.getToAccountId(), transactionRecord.getRecordId());
+                        state.set(TransactionDeletionState.TO_ACCOUNT_WITHDRAWN);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted transaction entity with id: {}, error: {}", transactionRecord.getToAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during transaction deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                }).then(Mono.fromRunnable(() -> {
+                    if (state.get() == TransactionDeletionState.TO_ACCOUNT_WITHDRAWN) {
+                        sendMessage("accounts-out-0", fromAccountUpdateId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, transactionRecord.getFromAccountId(), transactionRecord.getAmount()));
+                    }
+                })).then(responseListener.waitForResponse(fromAccountUpdateId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted transaction entity with id: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+                        state.set(TransactionDeletionState.FROM_ACCOUNT_DEPOSITED);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted transaction entity with id: {}, error: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during transaction deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .onErrorResume(ex -> {
+                    LOG.warn("Encountered an error during transaction deletion with id: {}, exception: {}", transactionRecord.getRecordId(), ex.getMessage());
+                    if (!(ex instanceof NotFoundException)) {
+                        if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                            switch (state.get()) {
+                                case INIT:
+                                    state.set(TransactionDeletionState.TRANSACTION_DELETED);
+                                    break;
+                                case TRANSACTION_DELETED:
+                                    state.set(TransactionDeletionState.TO_ACCOUNT_WITHDRAWN);
+                                    break;
+                                case TO_ACCOUNT_WITHDRAWN:
+                                    state.set(TransactionDeletionState.FROM_ACCOUNT_DEPOSITED);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        restoreTransactionDeletion(state.get(), transactionRecord, transactionRecord.getAmount(), transactionRecord.getAmount());
+                    }
+                    return Mono.empty();
+                }).then().subscribeOn(publishEventScheduler);
     }
 
     @Override
     public Mono<Void> deleteTransaction(TransactionRecord transactionRecord, BigDecimal amount) {
         AtomicReference<TransactionDeletionState> state = new AtomicReference<>(TransactionDeletionState.INIT);
-        return null;
+        String fromAccountUpdateId = UUID.randomUUID().toString();
+        String toAccountUpdateId = UUID.randomUUID().toString();
+        return transactionGateway.getTransaction(transactionRecord.getRecordId())
+                .onErrorMap(e -> {
+                    LOG.warn("Transaction record not found: {}", transactionRecord.getRecordId());
+                    return new NotFoundException("Transaction record to delete not found");
+                })
+                .then(Mono.fromRunnable(() -> {
+                    LOG.info("Starting the transaction deletion saga for transaction: {}", transactionRecord);
+                    sendMessage("transactions-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, transactionRecord.getRecordId(), transactionRecord));
+                }))
+                .then(Mono.delay(Duration.ofSeconds(1)))
+                .then(transactionGateway.getTransaction(transactionRecord.getRecordId())
+                        .onErrorResume(NotFoundException.class, e -> {
+                            state.set(TransactionDeletionState.TRANSACTION_DELETED);
+                            return Mono.empty();
+                        })
+                )
+                .then(Mono.fromRunnable(() -> {
+                    if (state.get() == TransactionDeletionState.TRANSACTION_DELETED) {
+                        sendMessage("accounts-out-0", toAccountUpdateId, new AccountEvent<>(AccountEvent.Type.WITHDRAW, transactionRecord.getToAccountId(), amount));
+                    }
+                }))
+                .then(responseListener.waitForResponse(toAccountUpdateId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted transaction entity with id: {}", transactionRecord.getToAccountId(), transactionRecord.getRecordId());
+                        state.set(TransactionDeletionState.TO_ACCOUNT_WITHDRAWN);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted transaction entity with id: {}, error: {}", transactionRecord.getToAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during transaction deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                }).then(Mono.fromRunnable(() -> {
+                    if (state.get() == TransactionDeletionState.TO_ACCOUNT_WITHDRAWN) {
+                        sendMessage("accounts-out-0", fromAccountUpdateId, new AccountEvent<>(AccountEvent.Type.DEPOSIT, transactionRecord.getFromAccountId(), transactionRecord.getAmount()));
+                    }
+                })).then(responseListener.waitForResponse(fromAccountUpdateId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+                .flatMap(response -> {
+                    if (response.getEventType() == SUCCESS) {
+                        LOG.info("Account updated successfully with id: {} because of deleted transaction entity with id: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId());
+                        state.set(TransactionDeletionState.FROM_ACCOUNT_DEPOSITED);
+                        return Mono.empty();
+                    } else if (response.getEventType() == ERROR) {
+                        LOG.warn("Failed to update account with id {} for deleted transaction entity with id: {}, error: {}", transactionRecord.getFromAccountId(), transactionRecord.getRecordId(), response.getData().getMessage());
+                        return Mono.error(createMessageResponseError(response.getData()));
+                    } else {
+                        LOG.error("Unknown response event received during transaction deletion");
+                        return Mono.error(new EventProcessingException("Could not process unknown response event"));
+                    }
+                })
+                .onErrorResume(ex -> {
+                    LOG.warn("Encountered an error during transaction deletion with id: {}, exception: {}", transactionRecord.getRecordId(), ex.getMessage());
+                    if (!(ex instanceof NotFoundException)) {
+                        if (ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY)) {
+                            switch (state.get()) {
+                                case INIT:
+                                    state.set(TransactionDeletionState.TRANSACTION_DELETED);
+                                    break;
+                                case TRANSACTION_DELETED:
+                                    state.set(TransactionDeletionState.TO_ACCOUNT_WITHDRAWN);
+                                    break;
+                                case TO_ACCOUNT_WITHDRAWN:
+                                    state.set(TransactionDeletionState.FROM_ACCOUNT_DEPOSITED);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        restoreTransactionDeletion(state.get(), transactionRecord, transactionRecord.getAmount(), amount);
+                    }
+                    return Mono.empty();
+                }).then().subscribeOn(publishEventScheduler);
     }
 
     private Throwable mapException(String message, HttpStatus status) {
@@ -611,6 +762,33 @@ public class TransactionSagaImpl implements TransactionSaga {
                 break;
             default:
                 LOG.warn("Couldn't determine restore action for transaction update with state {}", state);
+        }
+    }
+
+    private void restoreTransactionDeletion(TransactionDeletionState state, TransactionRecord transaction, BigDecimal fromAmount, BigDecimal toAmount) {
+        LOG.info("Rolling back transaction deletion with id {} and state {}", transaction.getRecordId(), state);
+        switch (state) {
+            case TRANSACTION_DELETED:
+                LOG.info("Rolling back transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.CREATE, transaction.getRecordId(), transaction));
+                break;
+            case TO_ACCOUNT_WITHDRAWN:
+                LOG.info("Rolling back withdrawal made because of transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getToAccountId(), toAmount));
+                LOG.info("Rolling back transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.CREATE, transaction.getRecordId(), transaction));
+                break;
+            case FROM_ACCOUNT_DEPOSITED:
+                LOG.info("Rolling back deposit made because of transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.WITHDRAW, transaction.getFromAccountId(), fromAmount));
+                LOG.info("Rolling back withdrawal made because of transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("accounts-out-0", new AccountEvent<>(AccountEvent.Type.DEPOSIT, transaction.getToAccountId(), toAmount));
+                LOG.info("Rolling back transaction deletion with id {}", transaction.getRecordId());
+                sendMessage("transactions-out-0", new CrudEvent<String, TransactionRecord>(CrudEvent.Type.CREATE, transaction.getRecordId(), transaction));
+                break;
+            default:
+                LOG.warn("Couldn't determine rollback action for transaction deletion with state {}", state);
+                break;
         }
     }
 }
