@@ -303,7 +303,7 @@ public class IncomeSagaImpl implements IncomeSaga {
                     LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
                     sendMessage("incomes-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, incomeRecord.getRecordId(), incomeRecord));
                 }))
-                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(Mono.delay(Duration.ofSeconds(1)))
                 .then(incomeGateway.getIncome(incomeRecord.getRecordId())
                         .onErrorResume(NotFoundException.class, e -> {
                             state.set(IncomeDeletionState.INCOME_DELETED);
@@ -353,7 +353,7 @@ public class IncomeSagaImpl implements IncomeSaga {
                     LOG.info("Starting the income deletion saga for income: {}", incomeRecord);
                     sendMessage("incomes-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, incomeRecord.getRecordId(), incomeRecord));
                 }))
-                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(Mono.delay(Duration.ofSeconds(1)))
                 .then(incomeGateway.getIncome(incomeRecord.getRecordId())
                         .onErrorResume(NotFoundException.class, e -> {
                             state.set(IncomeDeletionState.INCOME_DELETED);

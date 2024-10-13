@@ -8,13 +8,16 @@ import hu.therealuhlarzoltan.expensables.api.microservices.core.income.IncomeRec
 import hu.therealuhlarzoltan.expensables.api.microservices.core.transaction.TransactionRecord;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.CrudEvent;
 import hu.therealuhlarzoltan.expensables.api.microservices.events.Event;
+import hu.therealuhlarzoltan.expensables.api.microservices.events.HttpResponseEvent;
+import hu.therealuhlarzoltan.expensables.api.microservices.events.ResponsePayload;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProcessingException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.ServiceResponseException;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.AccountGateway;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.ExpenseGateway;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.IncomeGateway;
 import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.gateways.TransactionGateway;
-import hu.therealuhlarzoltan.expensables.microservices.accountclient.components.sagas.AccountSaga;
 import hu.therealuhlarzoltan.expensables.util.HttpErrorInfo;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -36,9 +39,12 @@ import reactor.core.scheduler.Scheduler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.logging.Level.FINE;
+import static hu.therealuhlarzoltan.expensables.api.microservices.events.HttpResponseEvent.Type.*;
 
 @Service
 public class AccountIntegrationImpl implements AccountIntegration {
@@ -48,32 +54,32 @@ public class AccountIntegrationImpl implements AccountIntegration {
     private final IncomeGateway incomeGateway;
     private final ExpenseGateway expenseGateway;
     private final TransactionGateway transactionGateway;
-    private final AccountSaga saga;
     private final Scheduler publishEventScheduler;
     private final StreamBridge streamBridge;
-    private final WebClient webClient;
     private final ObjectMapper mapper;
+    private final ResponseListenerService responseListener;
+    private final int RESPONSE_EVENT_WAIT_DURATION;
 
     @Autowired
     public AccountIntegrationImpl(
             @Qualifier("publishEventScheduler") Scheduler publishEventScheduler,
-            WebClient webClient,
             ObjectMapper mapper,
             StreamBridge streamBridge,
             AccountGateway accountGateway,
             IncomeGateway incomeGateway,
             ExpenseGateway expenseGateway,
             TransactionGateway transactionGateway,
-            AccountSaga saga) {
+            ResponseListenerService responseListener,
+            @Value("${app.response-event-wait-duration:10}") int responseEventWaitDuration) {
         this.publishEventScheduler = publishEventScheduler;
-        this.webClient = webClient;
         this.mapper = mapper;
         this.streamBridge = streamBridge;
         this.accountGateway = accountGateway;
         this.incomeGateway = incomeGateway;
         this.expenseGateway = expenseGateway;
         this.transactionGateway = transactionGateway;
-        this.saga = saga;
+        this.responseListener = responseListener;
+        this.RESPONSE_EVENT_WAIT_DURATION = responseEventWaitDuration;
     }
 
     @Override
@@ -137,44 +143,52 @@ public class AccountIntegrationImpl implements AccountIntegration {
     }
 
     @Override
-    public Mono<AccountInformation> createAccount(Account account, Optional<String> correlationId) {
+    public Mono<Account> createAccount(Account account) {
         LOG.info("Will call the createAccount API from the integration layer with body: {}", account);
-        String corrId = correlationId.orElse(null);
-        return Mono.fromCallable(() -> {
+        String corrId = UUID.randomUUID().toString();
+        return Mono.fromRunnable(() -> {
             sendMessage("accounts-out-0", corrId, new CrudEvent<String, Account>(CrudEvent.Type.CREATE, account.getAccountId(), account));
-            account.setVersion(0);
-            return AccountInformation.builder()
-                    .accountId(account.getAccountId())
-                    .accountName(account.getAccountName())
-                    .accountType(account.getAccountType())
-                    .accountCategory(account.getAccountCategory())
-                    .balance(account.getBalance())
-                    .bankName(account.getBankName())
-                    .currency(account.getCurrency())
-                    .ownerId(account.getOwnerId())
-                    .version(0)
-                    .build();
-        }).subscribeOn(publishEventScheduler);
+        }).then(responseListener.waitForResponse(corrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+        .flatMap(response -> {
+            if (response.getEventType() == SUCCESS) {
+                LOG.info("Successfully created account with id: {}", account.getAccountId());
+                String jsonString = response.getData().getMessage();
+                Account createdAccount = deserializeObjectFromJson(jsonString, Account.class);
+                return Mono.just(createdAccount);
+            } else if (response.getEventType() == ERROR) {
+                LOG.error("Error while creating account with id: {}, message: {}",account.getAccountId(),  response.getData().getMessage());
+                return Mono.error(createMessageResponseError(response.getData()));
+            } else {
+                return Mono.error(new EventProcessingException("Couldn't process unknown response event type: " + response.getEventType()));
+            }
+        }).doOnError((ex) -> ex instanceof ServiceResponseException && ((ServiceResponseException) ex).getResponseStatus().equals(HttpStatus.FAILED_DEPENDENCY), (ex) -> {
+            LOG.warn("Rolling back account creation with id: {}", account.getAccountId());
+            sendMessage("accounts-out-0", new CrudEvent<String, Account>(CrudEvent.Type.DELETE, account.getAccountId(), account));
+        })
+        .subscribeOn(publishEventScheduler);
     }
 
     @Override
-    public Mono<AccountInformation> updateAccount(Account account, Optional<String> correlationId) {
+    public Mono<Account> updateAccount(Account account) {
         LOG.info("Will call the updateAccount API from the integration layer with body: {}", account);
-        String corrId = correlationId.orElse(null);
-        return Mono.fromCallable(() -> {
+        String corrId = UUID.randomUUID().toString();
+        return Mono.fromRunnable(() -> {
             sendMessage("accounts-out-0", corrId, new CrudEvent<String, Account>(CrudEvent.Type.UPDATE, account.getAccountId(), account));
-            return AccountInformation.builder()
-                    .accountId(account.getAccountId())
-                    .accountName(account.getAccountName())
-                    .accountType(account.getAccountType())
-                    .accountCategory(account.getAccountCategory())
-                    .balance(account.getBalance())
-                    .bankName(account.getBankName())
-                    .currency(account.getCurrency())
-                    .ownerId(account.getOwnerId())
-                    .version(account.getVersion() + 1)
-                    .build();
-        }).subscribeOn(publishEventScheduler);
+        }).then(responseListener.waitForResponse(corrId, Duration.ofSeconds(RESPONSE_EVENT_WAIT_DURATION)))
+        .flatMap(response -> {
+            if (response.getEventType() == SUCCESS) {
+                LOG.info("Successfully updated account with id: {}", account.getAccountId());
+                String jsonString = response.getData().getMessage();
+                Account createdAccount = deserializeObjectFromJson(jsonString, Account.class);
+                return Mono.just(createdAccount);
+            } else if (response.getEventType() == ERROR) {
+                LOG.error("Error while updating account with id: {}, message: {}",account.getAccountId(),  response.getData().getMessage());
+                return Mono.error(createMessageResponseError(response.getData()));
+            } else {
+                return Mono.error(new EventProcessingException("Couldn't process unknown response event type: " + response.getEventType()));
+            }
+        })
+        .subscribeOn(publishEventScheduler);
     }
 
     @Override
@@ -203,6 +217,20 @@ public class AccountIntegrationImpl implements AccountIntegration {
                 .setHeader("partitionKey", event.getKey())
                 .build();
         streamBridge.send(bindingName, message);
+    }
+
+    private <T> T deserializeObjectFromJson(String json, Class<T> clazz) {
+        T obj = null;
+        try {
+            obj = mapper.readValue(json, clazz);
+        } catch (IOException e) {
+            LOG.error("Couldn't deserialize object from json: {}", e.getMessage());
+        }
+        return obj;
+    }
+
+    private Throwable createMessageResponseError(ResponsePayload data) {
+        return new ServiceResponseException(data.getMessage(), data.getStatus());
     }
 
     private Throwable handleException(Throwable ex) {

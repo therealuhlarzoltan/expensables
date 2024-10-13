@@ -38,8 +38,8 @@ public class TransactionGatewayImpl implements TransactionGateway {
     private String TRANSACTION_SERVICE_URL;
 
     @Retry(name = "transactionService")
-    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallback")
-    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallback")
+    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallbackTransaction")
+    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallbackTransaction")
     @Override
     public Mono<TransactionRecord> getTransaction(String transactionId) {
         URI url = UriComponentsBuilder
@@ -49,8 +49,8 @@ public class TransactionGatewayImpl implements TransactionGateway {
     }
 
     @Retry(name = "transactionService")
-    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallback")
-    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallback")
+    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallbackTransactions")
+    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallbackTransactions")
     @Override
     public Flux<TransactionRecord> getAccountTransactions(String accountId) {
         URI url = UriComponentsBuilder
@@ -61,8 +61,8 @@ public class TransactionGatewayImpl implements TransactionGateway {
     }
 
     @Retry(name = "transactionService")
-    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallback")
-    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallback")
+    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallbackOutgoingTransactions")
+    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallbackOutgoingTransactions")
     @Override
     public Flux<TransactionRecord> getOutgoingTransactions(String accountId) {
         URI url = UriComponentsBuilder
@@ -74,8 +74,8 @@ public class TransactionGatewayImpl implements TransactionGateway {
     }
 
     @Retry(name = "transactionService")
-    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallback")
-    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallback")
+    @TimeLimiter(name = "transactionService", fallbackMethod = "handleTimeoutFallbackIncomingTransactions")
+    @CircuitBreaker(name = "transactionService", fallbackMethod = "handleFallbackIncomingTransactions")
     @Override
     public Flux<TransactionRecord> getIncomingTransactions(String accountId) {
         URI url = UriComponentsBuilder
@@ -87,11 +87,23 @@ public class TransactionGatewayImpl implements TransactionGateway {
     }
 
     //Handling timeouts
-    public Mono<TransactionRecord> handleTimeoutFallback(String transactionId, TimeoutException ex) {
+    public Mono<TransactionRecord> handleTimeoutFallbackTransaction(String transactionId, TimeoutException ex) {
         return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
     }
 
-    public Mono<TransactionRecord> handleFallback(String transactionId, Throwable ex) {
+    public Flux<TransactionRecord> handleTimeoutFallbackTransactions(String accountId, TimeoutException ex) {
+        return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+    }
+
+    public Flux<TransactionRecord> handleTimeoutFallbackOutgoingTransactions(String accountId, TimeoutException ex) {
+        return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+    }
+
+    public Flux<TransactionRecord> handleTimeoutFallbackIncomingTransactions(String accountId, TimeoutException ex) {
+        return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+    }
+
+    public Mono<TransactionRecord> handleFallbackTransaction(String transactionId, Throwable ex) {
         //Only handling 5xx server errors here
         if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
             return Mono.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
@@ -100,5 +112,38 @@ public class TransactionGatewayImpl implements TransactionGateway {
         }
         //"Re-throwing" the exception if it's not a 5xx error
         return Mono.error(ex);
+    }
+
+    public Flux<TransactionRecord> handleFallbackTransactions(String accountId, Throwable ex) {
+        //Only handling 5xx server errors here
+        if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
+            return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+        } else if (ex instanceof CallNotPermittedException) {
+            return Flux.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+        }
+        //"Re-throwing" the exception if it's not a 5xx error
+        return Flux.error(ex);
+    }
+
+    public Flux<TransactionRecord> handleFallbackOutgoingTransactions(String accountId, Throwable ex) {
+        //Only handling 5xx server errors here
+        if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
+            return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+        } else if (ex instanceof CallNotPermittedException) {
+            return Flux.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+        }
+        //"Re-throwing" the exception if it's not a 5xx error
+        return Flux.error(ex);
+    }
+
+    public Flux<TransactionRecord> handleFallbackIncomingTransactions(String accountId, Throwable ex) {
+        //Only handling 5xx server errors here
+        if (ex instanceof WebClientResponseException && ((WebClientResponseException) ex).getStatusCode().is5xxServerError()) {
+            return Flux.error(new ServiceResponseException("Dependent service call failed", HttpStatus.FAILED_DEPENDENCY));
+        } else if (ex instanceof CallNotPermittedException) {
+            return Flux.error(new ServiceResponseException("Service unavailable", HttpStatus.SERVICE_UNAVAILABLE));
+        }
+        //"Re-throwing" the exception if it's not a 5xx error
+        return Flux.error(ex);
     }
 }

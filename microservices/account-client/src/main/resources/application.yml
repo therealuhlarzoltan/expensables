@@ -11,6 +11,7 @@ app:
     income-service-url: http://income-service
     transaction-service-url: http://transaction-service
     health-check-path: /actuator/health
+    response-event-wait-duration: 5
 
 spring:
     application:

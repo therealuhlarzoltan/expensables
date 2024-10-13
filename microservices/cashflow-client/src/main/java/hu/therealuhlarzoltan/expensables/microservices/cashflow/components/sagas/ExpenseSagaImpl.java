@@ -305,7 +305,7 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                     LOG.info("Starting the expense deletion saga for expense: {}", expenseRecord);
                     sendMessage("expenses-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, expenseRecord.getRecordId(), expenseRecord));
                 }))
-                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(Mono.delay(Duration.ofSeconds(1)))
                 .then(expenseGateway.getExpense(expenseRecord.getRecordId())
                         .onErrorResume(NotFoundException.class, e -> {
                             state.set(ExpenseDeletionState.EXPENSE_DELETED);
@@ -355,7 +355,7 @@ public class ExpenseSagaImpl implements ExpenseSaga {
                     LOG.info("Starting the expense deletion saga for expense: {}", expenseRecord);
                     sendMessage("expenses-out-0", new CrudEvent<>(CrudEvent.Type.DELETE, expenseRecord.getRecordId(), expenseRecord));
                 }))
-                .then(Mono.delay(Duration.ofSeconds(2)))
+                .then(Mono.delay(Duration.ofSeconds(1)))
                 .then(expenseGateway.getExpense(expenseRecord.getRecordId())
                         .onErrorResume(NotFoundException.class, e -> {
                             state.set(ExpenseDeletionState.EXPENSE_DELETED);

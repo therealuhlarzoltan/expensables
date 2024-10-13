@@ -13,8 +13,8 @@ import java.util.Optional;
 
 public interface AccountIntegration {
     Mono<Account> getAccount(String accountId);
-    Mono<AccountInformation> createAccount(Account account, Optional<String> correlationId);
-    Mono<AccountInformation> updateAccount(Account account, Optional<String> correlationId);
+    Mono<Account> createAccount(Account account);
+    Mono<Account> updateAccount(Account account);
     Mono<Void> deleteAccount(Account account);
     Flux<IncomeRecord> getIncomes(String accountId);
     Flux<IncomeRecord> getIncomesWithFallback(String accountId);
