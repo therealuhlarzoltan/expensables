@@ -1,0 +1,90 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.3.3'
+	id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'hu.therealuhlarzoltan.expensables.microservices'
+version = '1.0.0-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(22)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+jar {
+	enabled = false
+}
+
+ext {
+	set('springCloudVersion', "2023.0.3")
+	mainClassName = 'AccountClientApplication'
+	lombokVersion = '1.18.32'
+	mongoDbVersion = '4.9.0'
+	mapStructVersion = '1.5.5.Final'
+	resilience4jVersion = '2.0.2'
+}
+
+dependencies {
+	//internal
+	implementation project(':api')
+	implementation project(':util')
+	//lombok
+	compileOnly "org.projectlombok:lombok:${lombokVersion}"
+	annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+	testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+	testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+	//mapStruct
+	implementation "org.mapstruct:mapstruct:${mapStructVersion}"
+	annotationProcessor "org.mapstruct:mapstruct-processor:${mapStructVersion}"
+	//circuitBreaker
+	implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+	implementation "io.github.resilience4j:resilience4j-reactor:${resilience4jVersion}"
+	implementation 'io.github.resilience4j:resilience4j-retry'
+	implementation 'io.github.resilience4j:resilience4j-bulkhead'
+	implementation 'io.github.resilience4j:resilience4j-ratelimiter'
+	implementation 'io.github.resilience4j:resilience4j-timelimiter'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	//mongoDB
+	implementation "org.mongodb:bson:${mongoDbVersion}"
+	//eureka
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+	//rabbitMQ
+	implementation 'org.springframework.cloud:spring-cloud-starter-stream-rabbit'
+	testImplementation 'org.springframework.amqp:spring-rabbit-test'
+	//loadBalancer
+	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+	//springBoot starters
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
+
+tasks.named('bootJar') {
+	mainClass = "hu.therealuhlarzoltan.expensables.microservices.accountclient.${mainClassName}"
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

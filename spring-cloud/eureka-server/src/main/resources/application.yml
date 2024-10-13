@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: eureka-server
+
+server:
+  port: 8761
+
+app:
+  eureka:
+    security:
+      username: eureka_client
+      password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: false
+    fetchRegistry: false
+    serviceUrl:
+      defaultZone: "http://${eureka.instance.hostname}:${server.port}/eureka/"
+  server:
+    waitTimeInMsWhenSyncEmpty: 0
+    response-cache-update-interval-ms: 5000
+
+logging:
+  level:
+    root: INFO
+
+---
+spring.config.activate.on-profile: docker
+
+app:
+  eureka-server-1: eureka-server-1
+  eureka-server-2: eureka-server-2
+
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: true
+    fetchRegistry: true
+    serviceUrl:
+      defaultZone: http://${app.eureka.security.username}:${app.eureka.security.password}@${app.eureka-server-1}:8761/eureka/, http://${app.eureka.security.username}:${app.eureka.security.password}@${app.eureka-server-2}:8761/eureka/
+  server:
+    waitTimeInMsWhenSyncEmpty: 0
+    response-cache-update-interval-ms: 5000
+
+server:
+  port: 8761
