@@ -54,6 +54,36 @@ spring:
           group: expenseResponsesGroup
           contentType: application/json
 
+spring.cloud.stream.bindings.accountResponseProcessor-in-0.consumer:
+  maxAttempts: 3
+  backOffInitialInterval: 500
+  backOffMaxInterval: 1000
+  backOffMultiplier: 2.0
+
+spring.cloud.stream.rabbit.bindings.accountResponseProcessor-in-0.consumer:
+  autoBindDlq: true
+  republishToDlq: true
+
+spring.cloud.stream.bindings.incomeResponseProcessor-in-0.consumer:
+  maxAttempts: 3
+  backOffInitialInterval: 500
+  backOffMaxInterval: 1000
+  backOffMultiplier: 2.0
+
+spring.cloud.stream.rabbit.bindings.incomeResponseProcessor-in-0.consumer:
+  autoBindDlq: true
+  republishToDlq: true
+
+spring.cloud.stream.bindings.expenseResponseProcessor-in-0.consumer:
+  maxAttempts: 3
+  backOffInitialInterval: 500
+  backOffMaxInterval: 1000
+  backOffMultiplier: 2.0
+
+spring.cloud.stream.rabbit.bindings.expenseResponseProcessor-in-0.consumer:
+  autoBindDlq: true
+  republishToDlq: true
+
 eureka:
   client:
     serviceUrl:
