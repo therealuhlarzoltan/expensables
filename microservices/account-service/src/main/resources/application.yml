@@ -39,7 +39,7 @@ spring.cloud.stream:
     accountResponses-out-0:
       destination: accountResponses
       producer:
-        requiredGroups: auditGroup
+        requiredGroups: auditGroup, accountClientsGroup, cashflowClientsGroup, transactionClientsGroup
       contentType: application/json
 
 spring.cloud.stream.bindings.messageProcessor-in-0.consumer:

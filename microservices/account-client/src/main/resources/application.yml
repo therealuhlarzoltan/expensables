@@ -50,7 +50,7 @@ spring:
                         required-groups: auditGroup
                 httpResponseProcessor-in-0:
                     destination: accountResponses
-                    group: accountResponsesGroup
+                    group: accountClientsGroup
                     contentType: application/json
 eureka:
     client:

@@ -42,7 +42,7 @@ spring:
                 required-groups: auditGroup
         accountResponseProcessor-in-0:
           destination: accountResponses
-          group: accountResponsesGroup
+          group: transactionClientsGroup
           contentType: application/json
         transactionResponseProcessor-in-0:
           destination: transactionResponses
