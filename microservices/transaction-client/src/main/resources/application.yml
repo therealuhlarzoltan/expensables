@@ -46,7 +46,7 @@ spring:
           contentType: application/json
         transactionResponseProcessor-in-0:
           destination: transactionResponses
-          group: incomeResponsesGroup
+          group: transactionResponsesGroup
           contentType: application/json
 
 eureka:

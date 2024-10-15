@@ -52,7 +52,6 @@ spring:
                     destination: accountResponses
                     group: accountResponsesGroup
                     contentType: application/json
-
 eureka:
     client:
         serviceUrl:
