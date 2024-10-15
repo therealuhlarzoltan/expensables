@@ -1,6 +1,7 @@
 server:
   port: 8002
   error.include-message: always
+  forward-headers-strategy: framework
 
 app:
   eureka-server: localhost
@@ -183,6 +184,7 @@ logging:
     root: INFO
     hu.therealuhlarzoltan: INFO
     org.springdoc: INFO
+    org.springframework.cloud.stream: DEBUG
     io.github.resilience4j.circuitbreaker: TRACE
     io.github.resilience4j.timelimiter: TRACE
 

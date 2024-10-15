@@ -1,6 +1,7 @@
 server:
     port: 8000
     error.include-message: always
+    forward-headers-strategy: framework
 
 app:
     eureka-server: localhost
