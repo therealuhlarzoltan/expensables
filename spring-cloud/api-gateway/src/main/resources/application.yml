@@ -1,6 +1,12 @@
 server:
   port: 8443
-  error.include-message: always
+  error.include-message: never
+
+server.ssl:
+  key-store-type: PKCS12
+  key-store: classpath:keystore/cert.p12
+  key-store-password: keystore-password
+  key-alias: localhost
 
 app:
   eureka-server: localhost
