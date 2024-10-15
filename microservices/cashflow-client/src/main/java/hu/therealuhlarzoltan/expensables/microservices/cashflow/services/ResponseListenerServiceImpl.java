@@ -27,7 +27,7 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
             HttpResponseEvent event = message.getPayload();
             String correlationId = (String) message.getHeaders().get("correlationId");
             HttpResponseEvent.Type eventType = event.getEventType();
-            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
+            LOG.info("Processing message created at {}... Correlation Id: {} Event Type: {}", event.getEventCreatedAt(), correlationId, eventType);
             processEvent(correlationId, event);
         };
     }
@@ -38,7 +38,7 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
             HttpResponseEvent event = message.getPayload();
             String correlationId = (String) message.getHeaders().get("correlationId");
             HttpResponseEvent.Type eventType = event.getEventType();
-            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
+            LOG.info("Processing message created at {}... Correlation Id: {} Event Type: {}", event.getEventCreatedAt(), correlationId, eventType);
             processEvent(correlationId, event);
         };
     }
@@ -49,7 +49,7 @@ public class ResponseListenerServiceImpl implements ResponseListenerService {
             HttpResponseEvent event = message.getPayload();
             String correlationId = (String) message.getHeaders().get("correlationId");
             HttpResponseEvent.Type eventType = event.getEventType();
-            LOG.info("Processing message created at {}...\nCorrelation Id: {}\nEvent Type: {}", event.getEventCreatedAt(), correlationId, eventType);
+            LOG.info("Processing message created at {}... Correlation Id: {} Event Type: {}", event.getEventCreatedAt(), correlationId, eventType);
             processEvent(correlationId, event);
         };
     }
