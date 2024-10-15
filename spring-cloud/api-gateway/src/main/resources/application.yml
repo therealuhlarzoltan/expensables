@@ -35,38 +35,38 @@ spring.cloud.gateway.routes:
   - id: account-client
     uri: lb://account-client
     predicates:
-      - Path=/account-client/**
+      - Path=/accounts/**
     filters:
-      - RewritePath=/account-client/(?<segment>.*), /${segment}
+      - RewritePath=/accounts/(?<segment>.*), /${segment}
 
   - id: account-client-swagger-ui
     uri: lb://account-client
     predicates:
-      - Path=/openapi/**
+      - Path=accounts/openapi/**
 
   - id: cashflow-client
     uri: lb://cashflow-client
     predicates:
-      - Path=/cashflow-client/**
+      - Path=/cashflow/**
     filters:
-      - RewritePath=/cashflow-client/(?<segment>.*), /${segment}
+      - RewritePath=/cashflow/(?<segment>.*), /${segment}
 
   - id: cashflow-client-swagger-ui
     uri: lb://cashflow-client
     predicates:
-      - Path=/openapi/**
+      - Path=cashflow/openapi/**
 
   - id: transaction-client
     uri: lb://transaction-client
     predicates:
-      - Path=/transaction-client/**
+      - Path=/transactions/**
     filters:
-      - RewritePath=/transaction-client/(?<segment>.*), /${segment}
+      - RewritePath=/transactions/(?<segment>.*), /${segment}
 
   - id: transaction-client-swagger-ui
     uri: lb://transaction-client
     predicates:
-      - Path=/openapi/**
+      - Path=transactions/openapi/**
 
   - id: eureka-api
     uri: http://${app.eureka-server}:8761
