@@ -50,8 +50,18 @@ spring:
                         required-groups: auditGroup
                 httpResponseProcessor-in-0:
                     destination: accountResponses
-                    group: accountResponsesGroup
+                    group: accountClientsGroup
                     contentType: application/json
+
+spring.cloud.stream.bindings.httpResponseProcessor-in-0.consumer:
+    maxAttempts: 3
+    backOffInitialInterval: 500
+    backOffMaxInterval: 1000
+    backOffMultiplier: 2.0
+
+spring.cloud.stream.rabbit.bindings.httpResponseProcessor-in-0.consumer:
+    autoBindDlq: true
+    republishToDlq: true
 
 eureka:
     client:

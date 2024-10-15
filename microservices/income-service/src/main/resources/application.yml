@@ -37,7 +37,7 @@ spring.cloud.stream:
   bindings:
     messageProcessor-in-0:
       destination: incomes
-      group: exchangesGroup
+      group: incomesGroup
     incomeResponses-out-0:
       destination: incomeResponses
       producer:
