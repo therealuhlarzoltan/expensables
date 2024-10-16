@@ -138,6 +138,9 @@ services:
       - SPRING_APPLICATION_NAME=eureka-server-2
     ports:
       - "8762:8761"
+    depends_on:
+      eureka-server-1:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq:3.11.8-management

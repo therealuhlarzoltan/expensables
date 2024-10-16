@@ -112,6 +112,76 @@ app:
   eureka-server-1: eureka-server-1
   eureka-server-2: eureka-server-2
 
+spring.cloud.gateway.routes:
+  - id: account-client
+    uri: lb://account-client
+    predicates:
+      - Path=/accounts/**
+    filters:
+      - RewritePath=/accounts/(?<segment>.*), /${segment}
+
+  - id: account-client-swagger-ui
+    uri: lb://account-client
+    predicates:
+      - Path=accounts/openapi/**
+
+  - id: cashflow-client
+    uri: lb://cashflow-client
+    predicates:
+      - Path=/cashflow/**
+    filters:
+      - RewritePath=/cashflow/(?<segment>.*), /${segment}
+
+  - id: cashflow-client-swagger-ui
+    uri: lb://cashflow-client
+    predicates:
+      - Path=cashflow/openapi/**
+
+  - id: transaction-client
+    uri: lb://transaction-client
+    predicates:
+      - Path=/transactions/**
+    filters:
+      - RewritePath=/transactions/(?<segment>.*), /${segment}
+
+  - id: transaction-client-swagger-ui
+    uri: lb://transaction-client
+    predicates:
+      - Path=transactions/openapi/**
+
+  - id: eureka-api-1
+    uri: http://${app.eureka-server-1}:8761
+    predicates:
+      - Path=/eureka-1/api/{segment}
+    filters:
+      - SetPath=/eureka/{segment}
+
+  - id: eureka-web-1
+    uri: http://${app.eureka-server-1}:8761
+    predicates:
+      - Path=/eureka-1/web
+    filters:
+      - SetPath=/
+
+  - id: eureka-default
+    uri: http://${app.eureka-server-1}:8761
+    predicates:
+      - Path=/eureka/**
+
+  - id: eureka-api-2
+    uri: http://${app.eureka-server-2}:8761
+    predicates:
+      - Path=/eureka-2/api/{segment}
+    filters:
+      - SetPath=/eureka/{segment}
+
+  - id: eureka-web-2
+    uri: http://${app.eureka-server-2}:8761
+    predicates:
+      - Path=/eureka-2/web
+    filters:
+      - SetPath=/
+
 eureka:
   client:
     serviceUrl:
