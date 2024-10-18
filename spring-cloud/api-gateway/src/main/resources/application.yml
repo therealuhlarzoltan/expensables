@@ -167,6 +167,8 @@ spring.cloud.gateway.routes:
     uri: http://${app.eureka-server-1}:8761
     predicates:
       - Path=/eureka/**
+    filters:
+      - SetPath=/
 
   - id: eureka-api-2
     uri: http://${app.eureka-server-2}:8761

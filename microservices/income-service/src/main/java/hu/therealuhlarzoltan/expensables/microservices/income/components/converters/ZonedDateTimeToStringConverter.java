@@ -1,4 +1,4 @@
-package hu.therealuhlarzoltan.expensables.microservices.expense.components.converters;
+package hu.therealuhlarzoltan.expensables.microservices.income.components.converters;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
@@ -8,12 +8,11 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Component
-public class StringToZonedDateTimeConverter implements Converter<String, ZonedDateTime> {
-
+public class ZonedDateTimeToStringConverter implements Converter<ZonedDateTime, String> {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
     @Override
-    public ZonedDateTime convert(@NonNull String source) {
-        return ZonedDateTime.parse(source, FORMATTER);
+    public String convert(@NonNull ZonedDateTime source) {
+        return source.format(FORMATTER);
     }
 }

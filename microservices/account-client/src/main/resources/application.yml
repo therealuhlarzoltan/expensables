@@ -195,7 +195,7 @@ logging:
         root: INFO
         hu.therealuhlarzoltan: INFO
         org.springdoc: INFO
-        org.springframework.cloud.stream: DEBUG
+        org.springframework.cloud.stream: INFO
 
 ---
 spring.config.activate.on-profile: docker
