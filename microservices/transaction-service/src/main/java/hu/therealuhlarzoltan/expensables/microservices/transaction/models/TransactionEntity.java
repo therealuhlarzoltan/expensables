@@ -1,5 +1,6 @@
 package hu.therealuhlarzoltan.expensables.microservices.transaction.models;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -11,6 +12,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 
@@ -40,7 +42,7 @@ public class TransactionEntity {
     @Size(min = 3, max = 3, message = "To currency must be 3 characters long")
     private String toCurrency;
     @NotNull(message = "Amount is required")
-    @Min(value = 0, message = "Amount must be greater than or equal to 0")
-    private Double amount;
+    @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than 0")
+    private BigDecimal amount;
     private ZonedDateTime timestamp;
 }

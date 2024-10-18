@@ -1,6 +1,7 @@
 server:
   port: 8002
   error.include-message: always
+  forward-headers-strategy: framework
 
 app:
   eureka-server: localhost
@@ -183,11 +184,16 @@ logging:
     root: INFO
     hu.therealuhlarzoltan: INFO
     org.springdoc: INFO
-    io.github.resilience4j.circuitbreaker: TRACE
-    io.github.resilience4j.timelimiter: TRACE
+    org.springframework.cloud.stream: INFO
+    io.github.resilience4j.circuitbreaker: DEBUG
+    io.github.resilience4j.timelimiter: DEBUG
 
 ---
 spring.config.activate.on-profile: docker
+
+spring:
+  rabbitmq:
+    host: rabbitmq
 
 app:
   eureka-server-1: eureka-server-1

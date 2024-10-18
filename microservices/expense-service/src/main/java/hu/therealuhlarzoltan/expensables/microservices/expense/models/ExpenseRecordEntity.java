@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.ser.ZonedDateTimeSerializer;
 import hu.therealuhlarzoltan.expensables.microservices.expense.annotations.ExpenseCategoryExists;
 import hu.therealuhlarzoltan.expensables.microservices.expense.annotations.ExpenseSubCategoryExists;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -45,7 +46,7 @@ public class ExpenseRecordEntity {
     @ExpenseSubCategoryExists(message = "Invalid expense subcategory")
     private String subCategory;
     @NotNull(message = "Amount is required")
-    @Min(value = 0, message = "Amount must be greater than or equal to 0")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than 0")
     private BigDecimal amount;
     @NotNull(message = "Currency is required")
     @Size(min = 3, max = 3, message = "Currency must be 3 characters long")

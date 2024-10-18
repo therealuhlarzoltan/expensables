@@ -11,6 +11,7 @@ import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProce
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InsufficientFundsException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +88,7 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
                                 })
                                 .onErrorResume(throwable -> {
                                     LOG.error("Failed to create expense, exception message: {}", throwable.getMessage());
-                                    ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                    ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
                                     HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                     sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
                                     return Mono.empty();
@@ -95,7 +96,7 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
                                 .subscribe();
                     } catch (Exception ex) {
                         LOG.error("Failed to create expense, exception message: {}", ex.getMessage());
-                        ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                        ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                         sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
                     }
@@ -112,7 +113,7 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
                                         })
                                         .onErrorResume(throwable -> {
                                             LOG.error("Failed to update expense, exception message: {}", throwable.getMessage());
-                                            ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                            ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
                                             HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                             sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
                                             return Mono.empty();
@@ -120,7 +121,7 @@ public Consumer<Message<Event<?, ?>>> messageProcessor() {
                                         .subscribe();
                             } catch (Exception ex) {
                                 LOG.error("Failed to update expense, exception message: {}", ex.getMessage());
-                                ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                                ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
                                 HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                 sendResponseMessage("expenseResponses-out-0", correlationId, responseEvent);
                             }
@@ -191,5 +192,15 @@ private HttpStatus resolveHttpStatus(Throwable throwable) {
         case InvalidInputDataException invalidInputDataException -> HttpStatus.UNPROCESSABLE_ENTITY;
         case null, default -> HttpStatus.FAILED_DEPENDENCY;
         };
+    }
+
+
+    private String getExceptionMessage(Throwable throwable) {
+        if (throwable instanceof ConstraintViolationException cv)
+            return cv.getConstraintViolations().stream().map(ConstraintViolation::getMessage).findFirst().orElse("Constraint violation");
+        else if (throwable instanceof MethodArgumentNotValidException manve)
+            return manve.getAllErrors().getFirst().getDefaultMessage();
+        else
+            return throwable.getMessage();
     }
 }

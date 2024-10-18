@@ -77,20 +77,25 @@ logging:
   level:
     root: INFO
     hu.therealuhlarzoltan: INFO
-    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
-    org.springdoc: INFO
+    org.springframework.data.mongodb.core.MongoTemplate: INFO
 
 ---
 spring.config.activate.on-profile: docker
 
+spring.data:
+  mongodb:
+    host: mongodb
+    port: 27017
+    database: transaction_record_db
+    auto-index-creation: true
+
+spring:
+  rabbitmq:
+    host: rabbitmq
 
 app:
   eureka-server-1: eureka-server-1
   eureka-server-2: eureka-server-2
-
-
-spring.data.mongodb.host: mongodb
-
 
 eureka:
   client:

@@ -14,6 +14,7 @@ import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.EventProce
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InsufficientFundsException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.InvalidInputDataException;
 import hu.therealuhlarzoltan.expensables.api.microservices.exceptions.NotFoundException;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,14 +82,14 @@ public class MessageProcessorConfig {
                                     })
                                     .onErrorContinue((throwable, obj) -> {
                                         LOG.error("Failed to create income, exception message: {}", throwable.getMessage());
-                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
                                     })
                                     .subscribe();
                         } catch (Exception ex) {
                             LOG.error("Failed to create income, exception message: {}", ex.getMessage());
-                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
                             HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                             sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
                         }
@@ -105,14 +106,14 @@ public class MessageProcessorConfig {
                                     })
                                     .onErrorContinue((throwable, obj) -> {
                                         LOG.error("Failed to update income, exception message: {}", throwable.getMessage());
-                                        ResponsePayload httpInfo = new ResponsePayload(throwable.getMessage(), resolveHttpStatus(throwable));
+                                        ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(throwable), resolveHttpStatus(throwable));
                                         HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                                         sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
                                     })
                                     .subscribe();
                         } catch (Exception ex) {
                             LOG.error("Failed to update income, exception message: {}", ex.getMessage());
-                            ResponsePayload httpInfo = new ResponsePayload(ex.getMessage(), resolveHttpStatus(ex));
+                            ResponsePayload httpInfo = new ResponsePayload(getExceptionMessage(ex), resolveHttpStatus(ex));
                             HttpResponseEvent responseEvent = new HttpResponseEvent(HttpResponseEvent.Type.ERROR, correlationId, httpInfo);
                             sendResponseMessage("incomeResponses-out-0", correlationId, responseEvent);
                         }
@@ -177,5 +178,14 @@ public class MessageProcessorConfig {
             case InvalidInputDataException invalidInputDataException -> HttpStatus.UNPROCESSABLE_ENTITY;
             case null, default -> HttpStatus.FAILED_DEPENDENCY;
         };
+    }
+
+    private String getExceptionMessage(Throwable throwable) {
+        if (throwable instanceof ConstraintViolationException cv)
+            return cv.getConstraintViolations().stream().map(ConstraintViolation::getMessage).findFirst().orElse("Constraint violation");
+        else if (throwable instanceof MethodArgumentNotValidException manve)
+            return manve.getAllErrors().getFirst().getDefaultMessage();
+        else
+            return throwable.getMessage();
     }
 }
