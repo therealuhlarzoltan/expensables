@@ -1,6 +1,7 @@
 package hu.therealuhlarzoltan.expensables.microservices.expense.components.converters;
 
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.time.ZonedDateTime;
@@ -12,7 +13,7 @@ public class StringToZonedDateTimeConverter implements Converter<String, ZonedDa
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_ZONED_DATE_TIME;
 
     @Override
-    public ZonedDateTime convert(String source) {
+    public ZonedDateTime convert(@NonNull String source) {
         return ZonedDateTime.parse(source, FORMATTER);
     }
 }

@@ -74,7 +74,6 @@ logging:
   level:
     root: INFO
     hu.therealuhlarzoltan: INFO
-    org.springdoc: INFO
 
 ---
 spring.config.activate.on-profile: docker

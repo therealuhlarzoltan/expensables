@@ -1,6 +1,7 @@
 server:
     port: 8000
     error.include-message: always
+    forward-headers-strategy: framework
 
 app:
     eureka-server: localhost
@@ -194,7 +195,7 @@ logging:
         root: INFO
         hu.therealuhlarzoltan: INFO
         org.springdoc: INFO
-        org.springframework.cloud.stream: DEBUG
+        org.springframework.cloud.stream: INFO
 
 ---
 spring.config.activate.on-profile: docker

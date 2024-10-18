@@ -1,6 +1,7 @@
 package hu.therealuhlarzoltan.expensables.api.microservices.core.exchange;
 
 import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -25,7 +26,7 @@ public class ExchangeRequest {
     @Size(min = 3, max = 3, message = "To currency must be 3 characters long")
     private String toCurrency;
     @NotNull(message = "Amount is required")
-    @Min(value = 0, message = "Amount must be greater than 0")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than 0")
     private BigDecimal amount;
     private ZonedDateTime exchangeDate;
 }

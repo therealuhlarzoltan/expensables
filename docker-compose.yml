@@ -1,58 +1,65 @@
 services:
   account:
     build: microservices/account-service
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       mongodb:
         condition: service_healthy
-    deploy:
-        replicas: 2
 
   expense:
     build: microservices/expense-service
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       mongodb:
         condition: service_healthy
-    deploy:
-        replicas: 2
 
   income:
     build: microservices/income-service
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
         mongodb:
             condition: service_healthy
-    deploy:
-        replicas: 2
 
   transaction:
     build: microservices/transaction-service
-    mem_limit: 256m
+    mem_limit: 512m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
     depends_on:
       mongodb:
         condition: service_healthy
-    deploy:
-      replicas: 2
 
   exchange:
     build: microservices/exchange-service
-    mem_limit: 256m
+    mem_limit: 448m
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    deploy:
-      replicas: 2
+    volumes:
+      - ./.env:/application/.env
+
+  account-client:
+    build: microservices/account-client
+    mem_limit: 448m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  cashflow-client:
+    build: microservices/cashflow-client
+    mem_limit: 448m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  transaction-client:
+    build: microservices/transaction-client
+    mem_limit: 448m
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
 
   mongodb:
     image: mongo:6.0.4
@@ -62,13 +69,25 @@ services:
     command: mongod
     healthcheck:
       test: "mongostat -n 1"
-      interval: 5s
-      timeout: 2s
-      retries: 60
+      interval: 20s
+      timeout: 3s
+      retries: 3
+
+  api-gateway:
+    build: spring-cloud/api-gateway
+    mem_limit: 448m
+    environment:
+      - PWD=${PWD}
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_SSL_KEY_STORE=file:/keystore/cert.p12
+    volumes:
+      - ${PWD}/keystore:/keystore
+    ports:
+      - "8443:8443"
 
   eureka-server-1:
     build: spring-cloud/eureka-server
-    mem_limit: 512m
+    mem_limit: 448m
     container_name: eureka-server-1
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -78,11 +97,23 @@ services:
 
   eureka-server-2:
     build: spring-cloud/eureka-server
-    mem_limit: 512m
+    mem_limit: 448m
     container_name: eureka-server-2
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_APPLICATION_NAME=eureka-server-2
     ports:
       - "8762:8761"
+
+  rabbitmq:
+    image: rabbitmq:3.11.8-management
+    mem_limit: 512m
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 5s
+      timeout: 2s
+      retries: 60
 
