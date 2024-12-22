@@ -1,6 +1,7 @@
 server:
   port: 7100
   error.include-message: always
+  forward-headers-strategy: framework
 
 spring:
   application:

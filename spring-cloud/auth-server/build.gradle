@@ -43,6 +43,7 @@ dependencies {
 
 	//springSecurity
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-authorization-server'
 	testImplementation 'org.springframework.security:spring-security-test'
 
 	//mySQL
