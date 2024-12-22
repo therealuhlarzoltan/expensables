@@ -7,6 +7,8 @@ app:
   eureka-server: localhost
   eureka-username: eureka_client
   eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+  auth-server: localhost
+  auth-server-port: 9999
   account-service-url: http://account-service
   transaction-service-url: http://transaction-service
   exchange-service-url: http://exchange-service
@@ -16,6 +18,11 @@ app:
 spring:
   application:
     name: transaction-client
+
+  security:
+    oauth2.resourceserver:
+        jwt:
+          issuer-uri: "http://${app.auth-server}:${app.auth-server-port}"
 
   rabbitmq:
     host: 127.0.0.1
@@ -198,6 +205,7 @@ spring:
 app:
   eureka-server-1: eureka-server-1
   eureka-server-2: eureka-server-2
+  auth-server: auth-server
 
 eureka:
   client:

@@ -7,6 +7,8 @@ app:
   eureka-server: localhost
   eureka-username: eureka_client
   eureka-password: CH3FKo(kEY;1g9JEFCG&urODeu24N=Tc
+  auth-server: localhost
+  auth-server-port: 9999
   account-service-url: http://account-service
   expense-service-url: http://expense-service
   income-service-url: http://income-service
@@ -17,6 +19,11 @@ app:
 spring:
   application:
     name: cashflow-client
+
+    security:
+        oauth2.resourceserver:
+            jwt:
+              issuer-uri: "http://${app.auth-server}:${app.auth-server-port}"
 
   rabbitmq:
     host: 127.0.0.1
@@ -232,6 +239,7 @@ spring:
 app:
   eureka-server-1: eureka-server-1
   eureka-server-2: eureka-server-2
+  auth-server: auth-server
 
 eureka:
   client:
