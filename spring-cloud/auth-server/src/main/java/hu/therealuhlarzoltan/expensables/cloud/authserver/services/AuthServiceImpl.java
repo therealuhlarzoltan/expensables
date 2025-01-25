@@ -38,6 +38,10 @@ public class AuthServiceImpl implements AuthService {
             throw new UserAlreadyExistsException("User with username " + userEntity.getUsername() + " already exists.");
         }
 
+        if (userRepository.existsByEmail(userEntity.getEmail())) {
+            throw new UserAlreadyExistsException("User with email address" + userEntity.getEmail() + " already exists.");
+        }
+
         userEntity.setPassword(passwordEncoder.encode(userEntity.getPassword()));
         RoleEntity userRole = roleRepository.findByName(defaultRole)
                 .orElseThrow(() -> new RuntimeException("User Role not set."));
