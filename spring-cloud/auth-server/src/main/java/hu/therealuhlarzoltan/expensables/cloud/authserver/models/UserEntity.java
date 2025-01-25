@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.Length;
 
 import java.util.Set;
 
@@ -27,6 +28,11 @@ public class UserEntity {
     @NotNull(message = "Password is required")
     @Size(min = 8, max = 64, message = "Password must be between 8 and 64 characters")
     private String password;
+
+    @NotNull(message = "Email address is required")
+    @Size(min = 3, message = "Invalid email address!")
+    @Size(max = 100, message = "Email address can be maximum 100 characters")
+    private String email;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "users_roles",
