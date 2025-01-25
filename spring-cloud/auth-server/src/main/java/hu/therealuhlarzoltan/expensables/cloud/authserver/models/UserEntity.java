@@ -31,7 +31,7 @@ public class UserEntity {
 
     @Column(unique = true)
     @NotNull(message = "Email address is required")
-    @Size(min = 3, message = "Invalid email address!")
+    @Size(min = 3, message = "Invalid email address")
     @Size(max = 100, message = "Email address can be maximum 100 characters")
     private String email;
 
